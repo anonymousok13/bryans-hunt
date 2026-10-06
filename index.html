@@ -636,15 +636,17 @@ function getMoonPhase(date) {
 }
 
 function getMoonPhaseName(phase) {
-  if (phase < 1.85) return { name: "New Moon", mult: 0.9, emoji: "🌑" };
-  if (phase < 7.38) return { name: "Waxing Crescent", mult: 0.7, emoji: "🌒" };
-  if (phase < 9.22) return { name: "First Quarter", mult: 0.8, emoji: "🌓" };
-  if (phase < 14.77) return { name: "Waxing Gibbous", mult: 0.75, emoji: "🌔" };
-  if (phase < 16.61) return { name: "Full Moon", mult: 0.9, emoji: "🌕" };
-  if (phase < 22.15) return { name: "Waning Gibbous", mult: 0.75, emoji: "🌖" };
-  if (phase < 23.99) return { name: "Last Quarter", mult: 0.8, emoji: "🌗" };
-  if (phase < 27.68) return { name: "Waning Crescent", mult: 0.7, emoji: "🌘" };
-  return { name: "New Moon", mult: 0.9, emoji: "🌑" };
+  // Daylight hunting: dark moon = deer hungry at first light = good
+  // Full moon = deer fed all night = bad for morning sits
+  if (phase < 1.85) return { name: "New Moon",        mult: 1.0, emoji: "🌑", note: "dark nights — deer hungry at first light" };
+  if (phase < 7.38) return { name: "Waxing Crescent", mult: 0.85, emoji: "🌒", note: "low light — good morning movement" };
+  if (phase < 9.22) return { name: "First Quarter",   mult: 0.75, emoji: "🌓", note: "moderate night feeding" };
+  if (phase < 14.77) return { name: "Waxing Gibbous", mult: 0.60, emoji: "🌔", note: "bright nights — deer may feed late" };
+  if (phase < 16.61) return { name: "Full Moon",       mult: 0.45, emoji: "🌕", note: "deer fed all night — slow mornings" };
+  if (phase < 22.15) return { name: "Waning Gibbous", mult: 0.60, emoji: "🌖", note: "still bright — afternoon better than morning" };
+  if (phase < 23.99) return { name: "Last Quarter",   mult: 0.75, emoji: "🌗", note: "getting darker — morning movement improving" };
+  if (phase < 27.68) return { name: "Waning Crescent",mult: 0.88, emoji: "🌘", note: "dark nights — good morning activity" };
+  return { name: "New Moon", mult: 1.0, emoji: "🌑", note: "dark nights — deer hungry at first light" };
 }
 
 function getSolunarPeriods(date, lat, lon) {
@@ -731,11 +733,32 @@ function precipScore(precip) {
   return 0;
 }
 
-function computeScore(weather, solunar, date, isAM) {
+function pressureScore(pTrend) {
+  // Barometric pressure is the #1 short-term movement predictor
+  // Dropping fast = deer moving hard ahead of front = best score
+  // Rising after front = good but not as electric
+  // Steady = neutral
+  if (pTrend.trend === 'dropping') {
+    // Scale by rate of drop
+    const absDelta = Math.abs(pTrend.delta);
+    if (absDelta >= 0.15) return 100; // fast drop — exceptional
+    if (absDelta >= 0.10) return 90;
+    return 75;
+  }
+  if (pTrend.trend === 'rising') {
+    const absDelta = Math.abs(pTrend.delta);
+    if (absDelta >= 0.10) return 70;
+    return 60;
+  }
+  return 50; // steady — neutral
+}
+
+function computeScore(weather, solunar, date, isAM, dayIdx) {
   const { tempF, windSpeedMph, windDeg, humidity, precip, pressures } = weather;
   const pTrend = pressureTrend(pressures);
   const moonMult = solunar.moonInfo.mult;
   const rutMult = getRutMultiplier(date);
+  const dIdx = dayIdx || 0;
 
   // Check major/minor solunar overlap with AM/PM
   const majors = [solunar.major1, solunar.major2].filter(h => isAM ? h < 12 : h >= 12);
@@ -745,24 +768,54 @@ function computeScore(weather, solunar, date, isAM) {
   const wScore = windScore(windSpeedMph, windDeg);
   const tScore = tempScore(tempF, windDeg, humidity);
   const pScore = precipScore(precip);
+  const bScore = pressureScore(pTrend); // barometric
 
-  // Pressure bonus
-  let pressureBonus = 0;
-  if (pTrend.trend === 'dropping') pressureBonus = 15; // dropping = deer moving before front
-  else if (pTrend.trend === 'rising') pressureBonus = 8;
+  // Disqualifiers — always apply regardless of day distance
+  if (windSpeedMph > 22) return { score: 15, disqualified: 'wind', pTrend, majors, minors };
+  if (precip > 0.5) return { score: 10, disqualified: 'rain', pTrend, majors, minors };
 
-  // Disqualifiers
-  if (windSpeedMph > 22) return { score: 15, disqualified: 'wind', pTrend };
-  if (precip > 3) return { score: 10, disqualified: 'rain', pTrend };
+  // Distance-based weight scaling
+  // Close in (0-2): weather dominates, solunar/moon light
+  // Far out (5-6): solunar/moon/rut carry more since weather data is unreliable
+  let wWeather, wSolunar, wMoon, wRut, wPressure, wPrecip, wTemp, wWind;
 
-  const raw = (
-    solunarScore * 0.25 +
-    pScore * 0.05 +
-    tScore * 0.20 +
-    wScore * 0.15 +
-    rutMult * 100 * 0.15 +
-    moonMult * 100 * 0.20
-  ) + pressureBonus;
+  if (dIdx <= 1) {
+    // Tomorrow or today — razor sharp on real conditions
+    wPressure = 0.28;
+    wTemp     = 0.20;
+    wWind     = 0.18;
+    wPrecip   = 0.08;
+    wSolunar  = 0.12;
+    wMoon     = 0.08;
+    wRut      = 0.06;
+  } else if (dIdx <= 3) {
+    // 2-3 days — still mostly weather
+    wPressure = 0.22;
+    wTemp     = 0.18;
+    wWind     = 0.15;
+    wPrecip   = 0.07;
+    wSolunar  = 0.18;
+    wMoon     = 0.10;
+    wRut      = 0.10;
+  } else {
+    // 4-6 days — solunar and rut fill the gap
+    wPressure = 0.12;
+    wTemp     = 0.13;
+    wWind     = 0.10;
+    wPrecip   = 0.05;
+    wSolunar  = 0.25;
+    wMoon     = 0.18;
+    wRut      = 0.17;
+  }
+
+  const raw =
+    bScore       * wPressure +
+    tScore       * wTemp     +
+    wScore       * wWind     +
+    pScore       * wPrecip   +
+    solunarScore * wSolunar  +
+    moonMult * 100 * wMoon   +
+    rutMult  * 100 * wRut;
 
   return { score: Math.min(100, Math.round(raw)), disqualified: null, pTrend, majors, minors };
 }
@@ -1000,8 +1053,8 @@ function renderDay(dayIdx) {
   const pmWeather = getHourlySlice(data, dayIdx, 14, 19); // 2pm-7pm
 
   const solunar = getSolunarPeriods(date, LAT, LON);
-  const amResult = computeScore(amWeather, solunar, date, true);
-  const pmResult = computeScore(pmWeather, solunar, date, false);
+  const amResult = computeScore(amWeather, solunar, date, true, dayIdx);
+  const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx);
   const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx);
 
   const phase = getRutPhase(date);
@@ -1071,7 +1124,7 @@ function renderDay(dayIdx) {
         <span class="pressure-label ${pTrend.trend}">Pressure ${pTrend.trend}${Math.abs(pTrend.delta) > 0.01 ? ' (' + Math.abs(pTrend.delta).toFixed(3) + '" Hg)' : ''}</span>
       </div>
       <div class="solunar-row">
-        ${solunar.moonInfo.emoji} ${solunar.moonInfo.name} ·
+        ${solunar.moonInfo.emoji} ${solunar.moonInfo.name} · ${solunar.moonInfo.note} ·
         Major: <span>${solunar.fmt(solunar.major1)}, ${solunar.fmt(solunar.major2)}</span> ·
         Minor: <span>${solunar.fmt(solunar.minor1)}, ${solunar.fmt(solunar.minor2)}</span>
       </div>
@@ -1226,29 +1279,32 @@ function getUpcomingCalendarEvent() {
   return null;
 }
 
-// Swipe support
-let touchStartX = 0;
-let touchStartY = 0;
+// Swipe support — attached after DOM ready
+function initSwipe() {
+  const target = document.getElementById('forecast-tab');
+  if (!target) return;
+  let startX = 0, startY = 0, startTime = 0;
 
-document.addEventListener('touchstart', e => {
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-}, { passive: true });
+  target.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startTime = Date.now();
+  }, { passive: true });
 
-document.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - touchStartX;
-  const dy = e.changedTouches[0].clientY - touchStartY;
-  // Only trigger on horizontal swipe (dx > dy, more than 50px)
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-    const forecastVisible = document.getElementById('forecast-tab').style.display !== 'none';
-    if (!forecastVisible) return;
-    if (dx < 0 && selectedDay < 6) {
-      selectDay(selectedDay + 1); // swipe left = next day
-    } else if (dx > 0 && selectedDay > 0) {
-      selectDay(selectedDay - 1); // swipe right = prev day
+  target.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    const dt = Date.now() - startTime;
+    // Fast horizontal swipe: >40px, more horizontal than vertical, under 400ms
+    if (dt < 400 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      if (dx < 0 && selectedDay < 6) {
+        selectDay(selectedDay + 1);
+      } else if (dx > 0 && selectedDay > 0) {
+        selectDay(selectedDay - 1);
+      }
     }
-  }
-}, { passive: true });
+  }, { passive: true });
+}
 
 function renderWeekStrip(data) {
   const strip = document.getElementById('week-strip');
@@ -1264,8 +1320,8 @@ function renderWeekStrip(data) {
     const amW = getHourlySlice(data, i, 5, 10);
     const pmW = getHourlySlice(data, i, 14, 19);
     const sol = getSolunarPeriods(d, LAT, LON);
-    const amR = computeScore(amW, sol, d, true);
-    const pmR = computeScore(pmW, sol, d, false);
+    const amR = computeScore(amW, sol, d, true, i);
+    const pmR = computeScore(pmW, sol, d, false, i);
     const best = Math.max(amR.score, pmR.score);
     const cls = scoreClass(best);
     const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
@@ -1299,6 +1355,7 @@ async function init() {
     document.getElementById('coords-label').textContent = `${STAND_LABEL} · Tomorrow: ${tomorrow.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
     renderWeekStrip(forecastData);
     renderDay(selectedDay); // defaults to tomorrow (index 1)
+    initSwipe();
   } catch(e) {
     document.getElementById('main-content').innerHTML = `<div class="error-msg">Failed to load weather data. Check your connection and reload.<br><small>${e.message}</small></div>`;
     document.getElementById('week-strip').innerHTML = '';
