@@ -873,12 +873,14 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
     const majorStr = amResult.majors && amResult.majors.length > 0
       ? ` Major solunar hits at ${solunar.fmt(amResult.majors[0])}.` : '';
 
+    const stalkNote = isGoodStalkDay ? ` Wind's steady ${amWindDir} at ${Math.round(amWeather.windSpeedMph)} mph — that ledge between the south stand and the creek bottom is set up for a stalk. Bryan might want to leave the saddle at home and work that edge.` : '';
+
     if (amResult.score >= 85) {
-      amSummary = `${confidence.hedge}Hey fellas — morning looks like money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind\'s in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Hey fellas — morning looks like money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind\'s in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}${stalkNote}${confidence.closing}`;
     } else if (amResult.score >= 72) {
-      amSummary = `${confidence.hedge}Morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind\'s right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind\'s right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}${stalkNote}${confidence.closing}`;
     } else if (amResult.score >= 48) {
-      amSummary = `${confidence.hedge}Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${pressureCallout}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${stalkNote}${pressureCallout}${confidence.closing}`;
     } else {
       amSummary = `${confidence.hedge}Slow morning. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind\'s pulling humidity up — ' : ''}Not expecting much. Rest the stand.${pressureCallout}${confidence.closing}`;
     }
@@ -887,6 +889,14 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
   // Gun season pushed-buck note
   const isGunSeason = (() => { const n = (date.getMonth()+1)*100+date.getDate(); return n >= 1121 && n <= 1206; })();
   const gunSeasonNote = isGunSeason ? ' Gun season is open — you might see a stranger buck pushed through from neighboring ground. Watch the creek bottom and timber edges.' : '';
+
+  // Stalk condition check — Bryan's ledge between S stand and creek bottom
+  // Good stalk day: steady NNE/N/NW wind 8-15 mph, overcast or partly cloudy, cool temps
+  const amWindDir = windDirName(amWeather.windDeg);
+  const isStalkWind = ['N','NNE','NE','NNW'].includes(amWindDir) && amWeather.windSpeedMph >= 7 && amWeather.windSpeedMph <= 16;
+  const isStalkTemp = amWeather.tempF >= 38 && amWeather.tempF <= 68;
+  const isStalkHumid = amWeather.humidity >= 40 && amWeather.humidity <= 75; // not too wet/dry — quiet ground
+  const isGoodStalkDay = isStalkWind && isStalkTemp && isStalkHumid && amWeather.windSpeedMph > 3;
 
   // PM summary
   if (pmResult.disqualified === 'wind') {
