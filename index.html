@@ -831,17 +831,21 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
     }
   }
 
+  // Gun season pushed-buck note
+  const isGunSeason = (() => { const n = (date.getMonth()+1)*100+date.getDate(); return n >= 1121 && n <= 1206; })();
+  const gunSeasonNote = isGunSeason ? ' Gun season is open — you might see a stranger buck pushed through from neighboring ground. Watch the creek bottom and timber edges.' : '';
+
   // PM summary
   if (pmResult.disqualified === 'wind') {
     pmSummary = `Afternoon wind jumps to ${Math.round(pmWeather.windSpeedMph)} mph. Rest the stand — not worth it.`;
   } else if (pmResult.score >= 72) {
-    pmSummary = `Afternoon holds up too — ${pmTempStr}, ${pmWindStr}. ${isMoneyWind(pmWeather.windDeg) ? 'Wind stays in your favor. ' : ''}Come back for the evening sit or stay all day.`;
+    pmSummary = `Afternoon holds up too — ${pmTempStr}, ${pmWindStr}. ${isMoneyWind(pmWeather.windDeg) ? 'Wind stays in your favor. ' : ''}Come back for the evening sit or stay all day.${gunSeasonNote}`;
   } else if (pmWeather.tempF > 72 && isWarmHumidWind(pmWeather.windDeg)) {
-    pmSummary = `Afternoon warms to ${pmTempStr} with a ${pmDir} wind pulling Gulf moisture. Deer are gonna be bedded — they won't move until after dark. Pull out by noon and rest the stand for next time.`;
+    pmSummary = `Afternoon warms to ${pmTempStr} with a ${pmDir} wind pulling Gulf moisture. Deer are gonna be bedded — they won't move until after dark. Pull out by noon and rest the stand.${gunSeasonNote}`;
   } else if (pmWeather.tempF > 72) {
-    pmSummary = `Afternoon heats up to ${pmTempStr}. ${pmDir} wind keeps the humidity down but it's still warm. Don't expect much until the last hour of light.`;
+    pmSummary = `Afternoon heats up to ${pmTempStr}. ${pmDir} wind keeps the humidity down but it's still warm. Don't expect much until the last hour of light.${gunSeasonNote}`;
   } else {
-    pmSummary = `Afternoon is ${pmTempStr} with ${pmWindStr}. Marginal — deer might move the last 45 minutes before dark if you want to sit it.`;
+    pmSummary = `Afternoon is ${pmTempStr} with ${pmWindStr}. Marginal — deer might move the last 45 minutes before dark if you want to sit it.${gunSeasonNote}`;
   }
 
   return { amSummary, pmSummary };
@@ -1116,6 +1120,19 @@ function renderDay(dayIdx) {
     `;
   }
 
+  // Vacuum effect banner
+  const vacuumHours = buckKilledHoursAgo();
+  if (vacuumHours !== null && vacuumHours <= 72) {
+    const hoursLeft = Math.round(72 - vacuumHours);
+    html += `<div class="pressure-alert" style="border-color:rgba(122,182,72,0.5);background:rgba(122,182,72,0.08);color:var(--green)">🦌 Buck down — vacuum effect active (~${hoursLeft}hrs left). Watch the timber edges and creek bottom. Bucks you've never seen may be cruising through to fill the void. Eyes open.</div>`;
+  }
+
+  // Season calendar cross-reference
+  const calAlert = getUpcomingCalendarEvent();
+  if (calAlert) {
+    html += `<div class="pressure-alert" style="border-color:rgba(200,146,42,0.5);background:rgba(200,146,42,0.08);color:var(--amber)">📅 ${calAlert.icon} <strong>${calAlert.title}</strong> in ${calAlert.daysOut} day${calAlert.daysOut !== 1 ? 's' : ''} (${calAlert.dateStr}) — check the Season Calendar tab for what to do.</div>`;
+  }
+
   // Hunt log
   html += `
     <div class="log-section">
@@ -1134,11 +1151,25 @@ function renderDay(dayIdx) {
           <option>All Day</option>
         </select>
         <input id="log-note" placeholder="Notes (optional)" style="flex:1;min-width:120px">
-        <button onclick="logHunt()">Log Hunt</button>
+      </div>
+      <div class="log-form" style="align-items:center;gap:12px;padding:4px 0 8px">
+        <label style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
+          <input type="checkbox" id="log-harvest" onchange="toggleHarvestType()" style="width:16px;height:16px;accent-color:var(--green)">
+          Deer killed
+        </label>
+        <div id="harvest-type-wrap" style="display:none;gap:8px;display:none">
+          <label style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
+            <input type="radio" name="harvest-type" value="buck" checked style="accent-color:var(--amber)"> Buck
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
+            <input type="radio" name="harvest-type" value="doe" style="accent-color:var(--green)"> Doe
+          </label>
+        </div>
+        <button onclick="logHunt()" style="margin-left:auto;background:var(--green-dim);color:var(--text-bright);border:1px solid var(--green-dim);font-family:monospace;font-size:0.78rem;padding:6px 14px;border-radius:4px;cursor:pointer">Log Hunt</button>
       </div>
       ${huntLog.slice(-5).reverse().map(e => `
         <div class="log-entry">
-          <span>${e.date}</span> · ${e.stand} · ${e.session}${e.note ? ' · ' + e.note : ''}
+          <span>${e.date}</span> · ${e.stand} · ${e.session}${e.harvest ? ' · 🦌 ' + e.harvest + ' killed' : ''}${e.note ? ' · ' + e.note : ''}
         </div>
       `).join('')}
     </div>
@@ -1147,16 +1178,77 @@ function renderDay(dayIdx) {
   main.innerHTML = html;
 }
 
+function toggleHarvestType() {
+  const checked = document.getElementById('log-harvest').checked;
+  const wrap = document.getElementById('harvest-type-wrap');
+  if (wrap) wrap.style.display = checked ? 'flex' : 'none';
+}
+
 function logHunt() {
   const stand = document.getElementById('log-stand').value;
   const session = document.getElementById('log-session').value;
   const note = document.getElementById('log-note').value;
+  const harvested = document.getElementById('log-harvest') && document.getElementById('log-harvest').checked;
+  const harvestType = harvested ? (document.querySelector('input[name="harvest-type"]:checked')?.value || 'buck') : null;
   const dateStr = new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
-  huntLog.push({ date: dateStr, stand, session, note });
+  huntLog.push({ date: dateStr, stand, session, note, harvest: harvestType, ts: Date.now() });
   if (huntLog.length > 30) huntLog = huntLog.slice(-30);
   saveLog();
   renderDay(selectedDay);
 }
+
+function buckKilledHoursAgo() {
+  // Find most recent buck kill
+  for (let i = huntLog.length - 1; i >= 0; i--) {
+    if (huntLog[i].harvest === 'buck' && huntLog[i].ts) {
+      const hours = (Date.now() - huntLog[i].ts) / (1000 * 60 * 60);
+      if (hours <= 72) return hours;
+    }
+  }
+  return null;
+}
+
+function getUpcomingCalendarEvent() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const todayN = (today.getMonth() + 1) * 100 + today.getDate();
+  const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  for (const e of SEASON_EVENTS) {
+    const year = e.month < 9 ? 2027 : 2026;
+    const eDate = new Date(year, e.month - 1, e.day);
+    eDate.setHours(0,0,0,0);
+    const diffDays = Math.round((eDate - today) / (1000 * 60 * 60 * 24));
+    if (diffDays > 0 && diffDays <= 7) {
+      return { ...e, daysOut: diffDays, dateStr: `${monthNames[e.month]} ${e.day}` };
+    }
+  }
+  return null;
+}
+
+// Swipe support
+let touchStartX = 0;
+let touchStartY = 0;
+
+document.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  // Only trigger on horizontal swipe (dx > dy, more than 50px)
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    const forecastVisible = document.getElementById('forecast-tab').style.display !== 'none';
+    if (!forecastVisible) return;
+    if (dx < 0 && selectedDay < 6) {
+      selectDay(selectedDay + 1); // swipe left = next day
+    } else if (dx > 0 && selectedDay > 0) {
+      selectDay(selectedDay - 1); // swipe right = prev day
+    }
+  }
+}, { passive: true });
 
 function renderWeekStrip(data) {
   const strip = document.getElementById('week-strip');
