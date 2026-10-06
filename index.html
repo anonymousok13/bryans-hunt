@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hunting at Bryan's</title>
+<style>
+  :root {
+    --bg: #0d1207;
+    --bg2: #141a0a;
+    --bg3: #1c2410;
+    --border: #2a3518;
+    --green: #7ab648;
+    --green-dim: #4a7a20;
+    --amber: #c8922a;
+    --red: #c84a2a;
+    --text: #d4cdb8;
+    --text-dim: #7a7560;
+    --text-bright: #eee8d0;
+    --hunt: #7ab648;
+    --marginal: #c8922a;
+    --skip: #c84a2a;
+    --pressure-drop: #e05a20;
+    --pressure-rise: #7ab648;
+    --pressure-steady: #7a7560;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #1c2410;
+      --bg2: #232e14;
+      --bg3: #2a3a18;
+      --border: #3a4a28;
+      --text: #d4cdb8;
+      --text-dim: #8a8570;
+      --text-bright: #eee8d0;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Georgia', serif; }
+  body { padding: 0 0 40px 0; }
+
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px 12px;
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 10;
+  }
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: normal;
+    color: var(--green);
+    letter-spacing: 0.04em;
+    font-family: 'Georgia', serif;
+  }
+  header p {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-top: 2px;
+    font-family: monospace;
+  }
+
+  .week-strip {
+    display: flex;
+    overflow-x: auto;
+    padding: 10px 12px;
+    gap: 8px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+  }
+  .week-strip::-webkit-scrollbar { display: none; }
+
+  .day-tab {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    cursor: pointer;
+    text-align: center;
+    min-width: 62px;
+    transition: border-color 0.15s;
+  }
+  .day-tab.active { border-color: var(--green); }
+  .day-tab .dow { font-size: 0.68rem; color: var(--text-dim); font-family: monospace; text-transform: uppercase; letter-spacing: 0.06em; }
+  .day-tab .date-num { font-size: 1.1rem; color: var(--text-bright); margin: 2px 0; }
+  .day-tab .tab-score {
+    font-size: 0.7rem;
+    font-family: monospace;
+    font-weight: bold;
+  }
+  .tab-score.hunt { color: var(--hunt); }
+  .tab-score.marginal { color: var(--marginal); }
+  .tab-score.skip { color: var(--skip); }
+
+  .main { padding: 14px 12px; max-width: 600px; margin: 0 auto; }
+
+  .session-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .session-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .session-label {
+    font-size: 0.72rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .verdict {
+    font-size: 0.8rem;
+    font-weight: bold;
+    font-family: monospace;
+    letter-spacing: 0.05em;
+  }
+  .verdict.hunt { color: var(--hunt); }
+  .verdict.marginal { color: var(--marginal); }
+  .verdict.skip { color: var(--skip); }
+
+  .score-bar-wrap { padding: 10px 14px 0; }
+  .score-bar-bg {
+    background: var(--bg3);
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .score-bar-fill.hunt { background: var(--hunt); }
+  .score-bar-fill.marginal { background: var(--marginal); }
+  .score-bar-fill.skip { background: var(--skip); }
+  .score-pct { font-size: 0.68rem; color: var(--text-dim); font-family: monospace; margin-top: 4px; }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    margin: 10px 0 0;
+    border-top: 1px solid var(--border);
+  }
+  .metric {
+    background: var(--bg2);
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .metric-val {
+    font-size: 1rem;
+    color: var(--text-bright);
+    font-family: monospace;
+  }
+  .metric-lbl {
+    font-size: 0.62rem;
+    color: var(--text-dim);
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+  .metric-val.good { color: var(--green); }
+  .metric-val.warn { color: var(--amber); }
+  .metric-val.bad { color: var(--red); }
+
+  .pressure-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    font-family: monospace;
+  }
+  .pressure-arrow { font-size: 1rem; }
+  .pressure-arrow.dropping { color: var(--pressure-drop); }
+  .pressure-arrow.rising { color: var(--pressure-rise); }
+  .pressure-arrow.steady { color: var(--pressure-steady); }
+  .pressure-label.dropping { color: var(--pressure-drop); font-weight: bold; }
+  .pressure-label.rising { color: var(--pressure-rise); }
+  .pressure-label.steady { color: var(--pressure-steady); }
+
+  .solunar-row {
+    padding: 6px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: var(--text-dim);
+  }
+  .solunar-row span { color: var(--amber); }
+
+  .summary-box {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 0.82rem;
+    line-height: 1.6;
+    color: var(--text);
+    font-style: italic;
+  }
+
+  .todo-box {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--bg3);
+  }
+  .todo-label {
+    font-size: 0.65rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--green-dim);
+    margin-bottom: 6px;
+  }
+  .todo-item {
+    font-size: 0.78rem;
+    color: var(--text);
+    padding: 3px 0;
+    padding-left: 12px;
+    position: relative;
+  }
+  .todo-item::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--green-dim);
+  }
+
+  .rut-banner {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .rut-phase-name {
+    font-size: 0.9rem;
+    color: var(--amber);
+    font-family: 'Georgia', serif;
+  }
+  .rut-phase-sub {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    font-family: monospace;
+    margin-top: 2px;
+  }
+  .rut-next {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    font-family: monospace;
+    text-align: right;
+  }
+
+  .pressure-alert {
+    background: rgba(224,90,32,0.12);
+    border: 1px solid rgba(224,90,32,0.4);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 0.78rem;
+    color: var(--pressure-drop);
+    font-family: monospace;
+  }
+
+  .log-section {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  .log-title {
+    font-size: 0.72rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .log-form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .log-form select, .log-form input, .log-form button {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.78rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+  }
+  .log-form button {
+    background: var(--green-dim);
+    color: var(--text-bright);
+    cursor: pointer;
+    border-color: var(--green-dim);
+  }
+  .log-form button:active { opacity: 0.8; }
+  .log-entry {
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: var(--text-dim);
+    padding: 4px 0;
+    border-top: 1px solid var(--border);
+  }
+  .log-entry span { color: var(--text); }
+
+  .loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    font-family: monospace;
+    font-size: 0.8rem;
+  }
+  .error-msg {
+    background: rgba(200,74,42,0.1);
+    border: 1px solid rgba(200,74,42,0.3);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    color: var(--red);
+    font-family: monospace;
+    margin-bottom: 12px;
+  }
+
+  .moon-row {
+    padding: 6px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    font-family: monospace;
+    color: var(--text-dim);
+    display: flex;
+    gap: 14px;
+  }
+  .moon-row span { color: var(--text); }
+
+  .days-since {
+    font-size: 0.68rem;
+    font-family: monospace;
+    color: var(--text-dim);
+    text-align: right;
+    padding: 4px 14px 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Hunting at Bryan's</h1>
+  <p id="coords-label">36.678800, -96.078444 · Loading...</p>
+</header>
+
+<div class="week-strip" id="week-strip">
+  <div class="loading">Loading forecast...</div>
+</div>
+
+<div class="main" id="main-content">
+  <div class="loading">Pulling weather data...</div>
+</div>
+
+<script>
+const LAT = 36.678800;
+const LON = -96.078444;
+const STAND_LABEL = "Bryan's Lease — Osage County";
+
+// Rut phase calendar for Washington/Osage County OK
+// Based on historical county activity curve
+const RUT_PHASES = [
+  { start: [9,1],  end: [10,20], name: "Early Season",   sub: "Food-focused, predictable movement",         next: "Pre-Rut starts Oct 21" },
+  { start: [10,21],end: [10,31], name: "Pre-Rut",        sub: "Scrapes lighting up, bucks starting to cruise", next: "Seeking phase Nov 1" },
+  { start: [11,1], end: [11,8],  name: "Seeking Phase",  sub: "Bucks on their feet in daylight — first peak", next: "Chasing starts Nov 9" },
+  { start: [11,9], end: [11,18], name: "Lockdown / Peak",sub: "Main rut peak — bucks locked to does",       next: "Post-rut Nov 19" },
+  { start: [11,19],end: [12,9],  name: "Post-Rut",       sub: "Bucks exhausted, back to food sources",      next: "Second rut Dec 10" },
+  { start: [12,10],end: [12,25], name: "Second Rut",     sub: "Yearling does cycling — secondary bump",     next: "Season winds down" },
+  { start: [12,26],end: [12,31], name: "Late Season",    sub: "Survival mode — food and warmth",            next: "" },
+];
+
+// Rut activity multiplier by day-of-year (normalized 0-1 from the curve)
+function getRutPhase(date) {
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  for (const p of RUT_PHASES) {
+    const [sm, sd] = p.start;
+    const [em, ed] = p.end;
+    const startN = sm * 100 + sd;
+    const endN = em * 100 + ed;
+    const curN = m * 100 + d;
+    if (curN >= startN && curN <= endN) return p;
+  }
+  return RUT_PHASES[0];
+}
+
+function getRutMultiplier(date) {
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const n = m * 100 + d;
+  // Peaks: seeking ~1105, lockdown ~1115, secondary ~1215
+  if (n >= 1101 && n <= 1108) return 0.85 + (n - 1101) * 0.02;
+  if (n >= 1109 && n <= 1118) return 0.95;
+  if (n >= 1119 && n <= 1125) return 0.7;
+  if (n >= 1210 && n <= 1220) return 0.65;
+  if (n >= 1021 && n <= 1031) return 0.5 + (n - 1021) * 0.03;
+  if (n >= 901  && n <= 1020) return 0.2;
+  return 0.1;
+}
+
+// Solunar calculation
+function getMoonPhase(date) {
+  const known = new Date(2000, 0, 6);
+  const diff = (date - known) / (1000 * 60 * 60 * 24);
+  const cycle = 29.53058867;
+  const phase = ((diff % cycle) + cycle) % cycle;
+  return phase;
+}
+
+function getMoonPhaseName(phase) {
+  if (phase < 1.85) return { name: "New Moon", mult: 0.9, emoji: "🌑" };
+  if (phase < 7.38) return { name: "Waxing Crescent", mult: 0.7, emoji: "🌒" };
+  if (phase < 9.22) return { name: "First Quarter", mult: 0.8, emoji: "🌓" };
+  if (phase < 14.77) return { name: "Waxing Gibbous", mult: 0.75, emoji: "🌔" };
+  if (phase < 16.61) return { name: "Full Moon", mult: 0.9, emoji: "🌕" };
+  if (phase < 22.15) return { name: "Waning Gibbous", mult: 0.75, emoji: "🌖" };
+  if (phase < 23.99) return { name: "Last Quarter", mult: 0.8, emoji: "🌗" };
+  if (phase < 27.68) return { name: "Waning Crescent", mult: 0.7, emoji: "🌘" };
+  return { name: "New Moon", mult: 0.9, emoji: "🌑" };
+}
+
+function getSolunarPeriods(date, lat, lon) {
+  // Simplified solunar — moon transit times
+  const phase = getMoonPhase(date);
+  const moonInfo = getMoonPhaseName(phase);
+  // Moon overhead ~every 24h50m, underfoot 12h25m later
+  // Rough major period times based on phase offset
+  const baseHour = (phase / 29.53) * 24;
+  const major1 = ((baseHour + 6) % 24);
+  const major2 = ((major1 + 12.42) % 24);
+  const minor1 = ((major1 + 6.21) % 24);
+  const minor2 = ((major2 + 6.21) % 24);
+
+  const fmt = h => {
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    const ampm = hh >= 12 ? 'pm' : 'am';
+    return `${hh > 12 ? hh - 12 : hh || 12}:${mm.toString().padStart(2,'0')}${ampm}`;
+  };
+
+  return { major1, major2, minor1, minor2, moonInfo, fmt };
+}
+
+// Wind direction helpers
+function windDirName(deg) {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function isMoneyWind(deg) {
+  // NNE, NE, N, NW winds are good for the south ladder stand
+  const dir = windDirName(deg);
+  return ['N','NNE','NE','NNW','WNW'].includes(dir);
+}
+
+function isWarmHumidWind(deg) {
+  const dir = windDirName(deg);
+  return ['S','SSW','SW','SSE','SE'].includes(dir);
+}
+
+function windScore(speedMph, deg) {
+  let score = 0;
+  // Speed scoring
+  if (speedMph >= 4 && speedMph <= 10) score = 100;
+  else if (speedMph < 4) score = 60; // dead calm — scent pools
+  else if (speedMph <= 15) score = 75;
+  else if (speedMph <= 20) score = 40;
+  else if (speedMph <= 25) score = 15;
+  else score = 0;
+  // Direction bonus/penalty
+  if (isMoneyWind(deg)) score = Math.min(100, score + 15);
+  else if (isWarmHumidWind(deg)) score = Math.max(0, score - 20);
+  return score;
+}
+
+function pressureTrend(pressures) {
+  // pressures: array of last 3h values in hPa
+  if (!pressures || pressures.length < 2) return { trend: 'steady', delta: 0 };
+  const delta = pressures[pressures.length - 1] - pressures[0];
+  const deltaInHg = delta * 0.02953;
+  if (deltaInHg < -0.08) return { trend: 'dropping', delta: deltaInHg };
+  if (deltaInHg > 0.06) return { trend: 'rising', delta: deltaInHg };
+  return { trend: 'steady', delta: deltaInHg };
+}
+
+function tempScore(tempF, windDeg, humidity) {
+  // Adjust effective temp for humid south wind
+  let effective = tempF;
+  if (isWarmHumidWind(windDeg) && humidity > 65) effective += 5;
+  if (effective < 35) return 50; // too cold for good movement
+  if (effective >= 35 && effective <= 55) return 100;
+  if (effective <= 65) return 80;
+  if (effective <= 72) return 60;
+  if (effective <= 78) return 35;
+  return 10;
+}
+
+function precipScore(precip) {
+  // precip in mm
+  if (precip < 0.1) return 100;
+  if (precip < 1) return 70; // light precip — not bad
+  if (precip < 3) return 40;
+  return 0;
+}
+
+function computeScore(weather, solunar, date, isAM) {
+  const { tempF, windSpeedMph, windDeg, humidity, precip, pressures } = weather;
+  const pTrend = pressureTrend(pressures);
+  const moonMult = solunar.moonInfo.mult;
+  const rutMult = getRutMultiplier(date);
+
+  // Check major/minor solunar overlap with AM/PM
+  const majors = [solunar.major1, solunar.major2].filter(h => isAM ? h < 12 : h >= 12);
+  const minors = [solunar.minor1, solunar.minor2].filter(h => isAM ? h < 12 : h >= 12);
+  const solunarScore = majors.length > 0 ? 90 : minors.length > 0 ? 65 : 40;
+
+  const wScore = windScore(windSpeedMph, windDeg);
+  const tScore = tempScore(tempF, windDeg, humidity);
+  const pScore = precipScore(precip);
+
+  // Pressure bonus
+  let pressureBonus = 0;
+  if (pTrend.trend === 'dropping') pressureBonus = 15; // dropping = deer moving before front
+  else if (pTrend.trend === 'rising') pressureBonus = 8;
+
+  // Disqualifiers
+  if (windSpeedMph > 22) return { score: 15, disqualified: 'wind', pTrend };
+  if (precip > 3) return { score: 10, disqualified: 'rain', pTrend };
+
+  const raw = (
+    solunarScore * 0.25 +
+    pScore * 0.05 +
+    tScore * 0.20 +
+    wScore * 0.15 +
+    rutMult * 100 * 0.15 +
+    moonMult * 100 * 0.20
+  ) + pressureBonus;
+
+  return { score: Math.min(100, Math.round(raw)), disqualified: null, pTrend, majors, minors };
+}
+
+function scoreClass(score) {
+  if (score >= 72) return 'hunt';
+  if (score >= 48) return 'marginal';
+  return 'skip';
+}
+
+function scoreVerdict(score, isAM) {
+  const session = isAM ? 'morning' : 'afternoon';
+  if (score >= 85) return `HUNT THE ${session.toUpperCase()} — DROP EVERYTHING`;
+  if (score >= 72) return `Hunt the ${session}`;
+  if (score >= 55) return `Marginal ${session} — your call`;
+  if (score >= 40) return `Weak ${session} — consider skipping`;
+  return `Skip the ${session}`;
+}
+
+function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar) {
+  const phase = getRutPhase(date);
+  const pTrend = amResult.pTrend;
+  const windDir = windDirName(amWeather.windDeg);
+  const isMoneyAM = isMoneyWind(amWeather.windDeg);
+  const pmDir = windDirName(pmWeather.windDeg);
+
+  let amSummary = '';
+  let pmSummary = '';
+
+  // AM summary
+  if (amResult.disqualified === 'wind') {
+    amSummary = `Wind is too strong this morning at ${Math.round(amWeather.windSpeedMph)} mph. Deer won't move well and your scent control is compromised. Stay home.`;
+  } else if (amResult.disqualified === 'rain') {
+    amSummary = `Heavy rain this morning. Not worth it.`;
+  } else {
+    const tempStr = `${Math.round(amWeather.tempF)}°F`;
+    const windStr = `${Math.round(amWeather.windSpeedMph)} mph ${windDir}`;
+    const majorStr = amResult.majors && amResult.majors.length > 0
+      ? ` Major solunar at ${solunar.fmt(amResult.majors[0])}.` : '';
+
+    if (amResult.score >= 72) {
+      amSummary = `This morning is ${amResult.score >= 85 ? 'money' : 'solid'} — ${tempStr}, ${windStr}${isMoneyAM ? ' (money wind for the south stand)' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are on their feet — hunt hard and consider staying all day.' : 'Get in the stand before first light.'}`;
+    } else if (amResult.score >= 48) {
+      amSummary = `Marginal morning — ${tempStr} with ${windStr}. Conditions aren't ideal but deer could still move.${majorStr} Worth sitting if you've got the time.`;
+    } else {
+      amSummary = `Slow morning — ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'South wind is pulling humidity up. ' : ''}Not expecting much movement.`;
+    }
+
+    if (pTrend.trend === 'dropping') {
+      amSummary += ` Barometer is falling fast — deer are feeding hard ahead of this front. This is your window.`;
+    } else if (pTrend.trend === 'rising') {
+      amSummary += ` Pressure rising after the front — deer coming back out of bedding.`;
+    }
+  }
+
+  // PM summary
+  if (pmResult.disqualified === 'wind') {
+    pmSummary = `Wind picks up to ${Math.round(pmWeather.windSpeedMph)} mph this afternoon. Rest the stand.`;
+  } else {
+    const pmTempStr = `${Math.round(pmWeather.tempF)}°F`;
+    const pmWindStr = `${Math.round(pmWeather.windSpeedMph)} mph ${pmDir}`;
+    if (pmResult.score >= 72) {
+      pmSummary = `This afternoon holds up — ${pmTempStr}, ${pmWindStr}. ${isMoneyWind(pmWeather.windDeg) ? 'Wind stays in your favor. ' : ''}Stay or come back for the evening sit.`;
+    } else if (pmWeather.tempF > 72 && isWarmHumidWind(pmWeather.windDeg)) {
+      pmSummary = `This afternoon warms to ${pmTempStr} with a ${pmDir} wind pulling Gulf moisture. Deer will bed early and won't move until after dark. Pull out by noon and rest the stand.`;
+    } else if (pmWeather.tempF > 72) {
+      pmSummary = `Afternoon heats up to ${pmTempStr}. ${pmDir} wind keeps humidity in check but it's still warm. Expect slow movement until the last hour of light.`;
+    } else {
+      pmSummary = `Afternoon is ${pmTempStr} with ${pmWindStr}. Marginal — deer may move the last 45 minutes before dark.`;
+    }
+  }
+
+  return { amSummary, pmSummary };
+}
+
+function getTodos(date) {
+  const phase = getRutPhase(date);
+  const todos = {
+    "Early Season": [
+      "Check and freshen corn feeder",
+      "Pull camera cards without bumping bedding areas",
+      "Scout scrape lines — don't work them yet",
+      "Keep entry/exit routes away from bedding",
+    ],
+    "Pre-Rut": [
+      "Put out the mock scrape dripper",
+      "Build a fake rub on a fresh sapling near a scrape",
+      "Hang estrus wick 20 yards upwind of your stand",
+      "Start calling — light buck tickling, not fighting",
+      "Check cameras on scrape lines",
+    ],
+    "Seeking Phase": [
+      "Hunt all day — bucks cruising don't punch a clock",
+      "Mock scrape dripper should be running",
+      "Use a doe bleat or soft grunt call",
+      "Set up on pinch points between bedding and food",
+      "Light rattling — single buck looking for trouble",
+    ],
+    "Lockdown / Peak": [
+      "Hunt funnels — locked-down bucks can appear anywhere",
+      "Blind calling and aggressive rattling — a lone buck will come",
+      "Don't burn your best stand — save it for a great day",
+      "Consider hunting all day if score is 80+",
+    ],
+    "Post-Rut": [
+      "Pull the dripper — back to food source hunting",
+      "Bucks are recovering — hunt feed, not scrapes",
+      "Hunt mornings hard — thermals and food overlap",
+      "Doe groups will tell you where bucks are staging",
+    ],
+    "Second Rut": [
+      "Estrus wick back out — yearling does cycling",
+      "Hunt like it's the seeking phase",
+      "Mock scrape dripper back in service",
+      "Bucks will be cruising again — good time to call",
+    ],
+    "Late Season": [
+      "Hunt food sources only — morning and evening",
+      "Bucks need calories — corn feeder is your friend",
+      "Minimize pressure — every bump costs you",
+    ],
+  };
+  return todos[phase.name] || [];
+}
+
+// Convert C to F
+const cToF = c => c * 9/5 + 32;
+// m/s to mph
+const msToMph = ms => ms * 2.23694;
+
+let forecastData = null;
+let selectedDay = 0;
+let huntLog = [];
+
+try {
+  const stored = localStorage.getItem('huntLog');
+  if (stored) huntLog = JSON.parse(stored);
+} catch(e) {}
+
+function saveLog() {
+  try { localStorage.setItem('huntLog', JSON.stringify(huntLog)); } catch(e) {}
+}
+
+function daysSinceLastHunt() {
+  if (!huntLog.length) return null;
+  const last = huntLog[huntLog.length - 1];
+  const diff = (Date.now() - new Date(last.date)) / (1000*60*60*24);
+  return Math.floor(diff);
+}
+
+async function fetchForecast() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,precipitation,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure&daily=sunrise,sunset&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=America%2FChicago&forecast_days=7`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Weather fetch failed: ${resp.status}`);
+  return resp.json();
+}
+
+function getHourlySlice(data, dayIdx, startHour, endHour) {
+  const base = dayIdx * 24;
+  const temps = [], winds = [], windDegs = [], humids = [], precips = [], pressures = [];
+  for (let h = startHour; h < endHour; h++) {
+    const i = base + h;
+    temps.push(data.hourly.temperature_2m[i]);
+    winds.push(data.hourly.windspeed_10m[i]);
+    windDegs.push(data.hourly.winddirection_10m[i]);
+    humids.push(data.hourly.relativehumidity_2m[i]);
+    precips.push(data.hourly.precipitation[i] * 25.4); // inches to mm
+    pressures.push(data.hourly.surface_pressure[i]);
+  }
+  const avg = arr => arr.reduce((a,b) => a+b, 0) / arr.length;
+  const dominantWind = windDegs.reduce((a,b,i,arr) => winds[i] > winds[arr.indexOf(Math.max(...winds))] ? a : b);
+  return {
+    tempF: avg(temps),
+    windSpeedMph: avg(winds),
+    windDeg: dominantWind,
+    humidity: avg(humids),
+    precip: precips.reduce((a,b) => a+b, 0),
+    pressures: pressures,
+  };
+}
+
+function renderDay(dayIdx) {
+  if (!forecastData) return;
+  const main = document.getElementById('main-content');
+  const data = forecastData;
+
+  const baseDate = new Date();
+  baseDate.setHours(0,0,0,0);
+  const date = new Date(baseDate);
+  date.setDate(date.getDate() + dayIdx);
+
+  const amWeather = getHourlySlice(data, dayIdx, 5, 10);  // 5am-10am
+  const pmWeather = getHourlySlice(data, dayIdx, 14, 19); // 2pm-7pm
+
+  const solunar = getSolunarPeriods(date, LAT, LON);
+  const amResult = computeScore(amWeather, solunar, date, true);
+  const pmResult = computeScore(pmWeather, solunar, date, false);
+  const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar);
+
+  const phase = getRutPhase(date);
+  const todos = getTodos(date);
+  const pTrend = amResult.pTrend;
+  const daysSince = daysSinceLastHunt();
+
+  const amClass = scoreClass(amResult.score);
+  const pmClass = scoreClass(pmResult.score);
+
+  let html = '';
+
+  // Pressure alert banner
+  if (pTrend.trend === 'dropping') {
+    html += `<div class="pressure-alert">⚠ Barometer dropping fast (${pTrend.delta.toFixed(3)}" Hg) — deer feeding hard ahead of incoming weather. Prime movement window.</div>`;
+  }
+
+  // Rut phase banner
+  html += `
+    <div class="rut-banner">
+      <div>
+        <div class="rut-phase-name">${phase.name}</div>
+        <div class="rut-phase-sub">${phase.sub}</div>
+      </div>
+      <div class="rut-next">${phase.next}</div>
+    </div>
+  `;
+
+  // AM card
+  html += `
+    <div class="session-card">
+      <div class="session-header">
+        <div class="session-label">Morning Sit · First light–10am</div>
+        <div class="verdict ${amClass}">${scoreVerdict(amResult.score, true)}</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-bg"><div class="score-bar-fill ${amClass}" style="width:${amResult.score}%"></div></div>
+        <div class="score-pct">${amResult.score}/100</div>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-val ${amWeather.tempF <= 60 ? 'good' : amWeather.tempF <= 72 ? '' : 'warn'}">${Math.round(amWeather.tempF)}°F</div>
+          <div class="metric-lbl">Temp</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val ${amWeather.windSpeedMph >= 4 && amWeather.windSpeedMph <= 12 ? 'good' : amWeather.windSpeedMph > 20 ? 'bad' : 'warn'}">${Math.round(amWeather.windSpeedMph)} mph</div>
+          <div class="metric-lbl">${windDirName(amWeather.windDeg)} Wind</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val ${amWeather.humidity < 65 ? 'good' : amWeather.humidity < 80 ? '' : 'warn'}">${Math.round(amWeather.humidity)}%</div>
+          <div class="metric-lbl">Humidity</div>
+        </div>
+      </div>
+      <div class="pressure-row">
+        <span class="pressure-arrow ${pTrend.trend}">${pTrend.trend === 'dropping' ? '↓' : pTrend.trend === 'rising' ? '↑' : '→'}</span>
+        <span class="pressure-label ${pTrend.trend}">Pressure ${pTrend.trend}${Math.abs(pTrend.delta) > 0.01 ? ' (' + Math.abs(pTrend.delta).toFixed(3) + '" Hg)' : ''}</span>
+      </div>
+      <div class="solunar-row">
+        ${solunar.moonInfo.emoji} ${solunar.moonInfo.name} ·
+        Major: <span>${solunar.fmt(solunar.major1)}, ${solunar.fmt(solunar.major2)}</span> ·
+        Minor: <span>${solunar.fmt(solunar.minor1)}, ${solunar.fmt(solunar.minor2)}</span>
+      </div>
+      <div class="summary-box">${amSummary}</div>
+    </div>
+  `;
+
+  // PM card
+  html += `
+    <div class="session-card">
+      <div class="session-header">
+        <div class="session-label">Evening Sit · 2pm–Dark</div>
+        <div class="verdict ${pmClass}">${scoreVerdict(pmResult.score, false)}</div>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-bg"><div class="score-bar-fill ${pmClass}" style="width:${pmResult.score}%"></div></div>
+        <div class="score-pct">${pmResult.score}/100</div>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-val ${pmWeather.tempF <= 65 ? 'good' : pmWeather.tempF <= 75 ? '' : 'warn'}">${Math.round(pmWeather.tempF)}°F</div>
+          <div class="metric-lbl">Temp</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val ${pmWeather.windSpeedMph >= 4 && pmWeather.windSpeedMph <= 12 ? 'good' : pmWeather.windSpeedMph > 20 ? 'bad' : 'warn'}">${Math.round(pmWeather.windSpeedMph)} mph</div>
+          <div class="metric-lbl">${windDirName(pmWeather.windDeg)} Wind</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val ${pmWeather.humidity < 65 ? 'good' : pmWeather.humidity < 80 ? '' : 'warn'}">${Math.round(pmWeather.humidity)}%</div>
+          <div class="metric-lbl">Humidity</div>
+        </div>
+      </div>
+      <div class="summary-box">${pmSummary}</div>
+    </div>
+  `;
+
+  // To-do box
+  if (todos.length > 0) {
+    html += `
+      <div class="session-card">
+        <div class="todo-box">
+          <div class="todo-label">Field Notes — ${phase.name}</div>
+          ${todos.map(t => `<div class="todo-item">${t}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // Hunt log
+  html += `
+    <div class="log-section">
+      <div class="log-title">Stand Log${daysSince !== null ? ` · Last hunt: ${daysSince === 0 ? 'today' : daysSince + ' day' + (daysSince !== 1 ? 's' : '') + ' ago'}` : ''}</div>
+      <div class="log-form">
+        <select id="log-stand">
+          <option>S Ladder</option>
+          <option>N Ladder</option>
+          <option>Box Blind</option>
+          <option>Bryan Saddle</option>
+          <option>Dustin Pop-up</option>
+        </select>
+        <select id="log-session">
+          <option>Morning</option>
+          <option>Evening</option>
+          <option>All Day</option>
+        </select>
+        <input id="log-note" placeholder="Notes (optional)" style="flex:1;min-width:120px">
+        <button onclick="logHunt()">Log Hunt</button>
+      </div>
+      ${huntLog.slice(-5).reverse().map(e => `
+        <div class="log-entry">
+          <span>${e.date}</span> · ${e.stand} · ${e.session}${e.note ? ' · ' + e.note : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  main.innerHTML = html;
+}
+
+function logHunt() {
+  const stand = document.getElementById('log-stand').value;
+  const session = document.getElementById('log-session').value;
+  const note = document.getElementById('log-note').value;
+  const dateStr = new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+  huntLog.push({ date: dateStr, stand, session, note });
+  if (huntLog.length > 30) huntLog = huntLog.slice(-30);
+  saveLog();
+  renderDay(selectedDay);
+}
+
+function renderWeekStrip(data) {
+  const strip = document.getElementById('week-strip');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let html = '';
+  const baseDate = new Date();
+  baseDate.setHours(0,0,0,0);
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + i);
+    const amW = getHourlySlice(data, i, 5, 10);
+    const pmW = getHourlySlice(data, i, 14, 19);
+    const sol = getSolunarPeriods(d, LAT, LON);
+    const amR = computeScore(amW, sol, d, true);
+    const pmR = computeScore(pmW, sol, d, false);
+    const best = Math.max(amR.score, pmR.score);
+    const cls = scoreClass(best);
+    const label = i === 0 ? 'Today' : days[d.getDay()];
+    html += `
+      <div class="day-tab ${i === selectedDay ? 'active' : ''}" onclick="selectDay(${i})">
+        <div class="dow">${label}</div>
+        <div class="date-num">${d.getDate()}</div>
+        <div class="tab-score ${cls}">${best}</div>
+      </div>
+    `;
+  }
+  strip.innerHTML = html;
+}
+
+function selectDay(i) {
+  selectedDay = i;
+  document.querySelectorAll('.day-tab').forEach((el, idx) => {
+    el.classList.toggle('active', idx === i);
+  });
+  renderDay(i);
+}
+
+async function init() {
+  try {
+    forecastData = await fetchForecast();
+    document.getElementById('coords-label').textContent = `${STAND_LABEL} · ${new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
+    renderWeekStrip(forecastData);
+    renderDay(0);
+  } catch(e) {
+    document.getElementById('main-content').innerHTML = `<div class="error-msg">Failed to load weather data. Check your connection and reload.<br><small>${e.message}</small></div>`;
+    document.getElementById('week-strip').innerHTML = '';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
