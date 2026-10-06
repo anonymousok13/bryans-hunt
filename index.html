@@ -359,6 +359,23 @@
     text-align: right;
     padding: 4px 14px 8px;
   }
+  .tab-alert {
+    font-size: 0.75rem;
+    margin-top: 2px;
+  }
+  .tab-alert.hot {
+    animation: pulse-alert 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse-alert {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+  }
+  .day-tab.has-alert {
+    border-color: var(--amber);
+  }
+  .day-tab.has-alert.active {
+    border-color: var(--green);
+  }
 
   /* Tab nav */
   .tab-nav {
@@ -765,7 +782,14 @@ function scoreVerdict(score, isAM) {
   return `Stay home — skip the ${session}`;
 }
 
-function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar) {
+function getForecastConfidence(dayIdx) {
+  if (dayIdx <= 1) return { hedge: '', closing: '' };
+  if (dayIdx <= 3) return { hedge: 'Looking a couple days out — ', closing: ' Keep an eye on it as it gets closer.' };
+  if (dayIdx <= 5) return { hedge: 'Four to five days out, so take this with some salt — ', closing: ' Check back in a day or two when the forecast firms up.' };
+  return { hedge: 'This far out it\'s more a heads-up than a verdict — ', closing: ' Way too early to set your alarm, but circle it.' };
+}
+
+function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx) {
   const phase = getRutPhase(date);
   const pTrend = amResult.pTrend;
   const windDir = windDirName(amWeather.windDeg);
@@ -778,6 +802,7 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar) {
 
   let amSummary = '';
   let pmSummary = '';
+  const confidence = getForecastConfidence(dayIdx || 0);
 
   // Opening callout for big pressure drop
   const pressureCallout = pTrend.trend === 'dropping'
@@ -796,13 +821,13 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar) {
       ? ` Major solunar hits at ${solunar.fmt(amResult.majors[0])}.` : '';
 
     if (amResult.score >= 85) {
-      amSummary = `Hey fellas — tomorrow morning is money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind's in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}`;
+      amSummary = `${confidence.hedge}Hey fellas — morning looks like money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind\'s in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}${confidence.closing}`;
     } else if (amResult.score >= 72) {
-      amSummary = `Tomorrow morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind's right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}`;
+      amSummary = `${confidence.hedge}Morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind\'s right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}${confidence.closing}`;
     } else if (amResult.score >= 48) {
-      amSummary = `Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${pressureCallout}`;
+      amSummary = `${confidence.hedge}Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${pressureCallout}${confidence.closing}`;
     } else {
-      amSummary = `Slow morning tomorrow. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind's pulling humidity up — ' : ''}Not expecting much. Rest the stand.${pressureCallout}`;
+      amSummary = `${confidence.hedge}Slow morning. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind\'s pulling humidity up — ' : ''}Not expecting much. Rest the stand.${pressureCallout}${confidence.closing}`;
     }
   }
 
@@ -910,23 +935,51 @@ function getHourlySlice(data, dayIdx, startHour, endHour) {
   const temps = [], winds = [], windDegs = [], humids = [], precips = [], pressures = [];
   for (let h = startHour; h < endHour; h++) {
     const i = base + h;
-    temps.push(data.hourly.temperature_2m[i]);
-    winds.push(data.hourly.windspeed_10m[i]);
-    windDegs.push(data.hourly.winddirection_10m[i]);
-    humids.push(data.hourly.relativehumidity_2m[i]);
-    precips.push(data.hourly.precipitation[i] * 25.4); // inches to mm
-    pressures.push(data.hourly.surface_pressure[i]);
+    if (i >= data.hourly.temperature_2m.length) break;
+    temps.push(data.hourly.temperature_2m[i] || 0);
+    winds.push(data.hourly.windspeed_10m[i] || 0);
+    windDegs.push(data.hourly.winddirection_10m[i] || 0);
+    humids.push(data.hourly.relativehumidity_2m[i] || 50);
+    precips.push(data.hourly.precipitation[i] || 0); // already in inches
+    pressures.push(data.hourly.surface_pressure[i] || 1013);
   }
+  if (!temps.length) return { tempF: 65, windSpeedMph: 5, windDeg: 0, humidity: 50, precip: 0, pressures: [1013] };
   const avg = arr => arr.reduce((a,b) => a+b, 0) / arr.length;
-  const dominantWind = windDegs.reduce((a,b,i,arr) => winds[i] > winds[arr.indexOf(Math.max(...winds))] ? a : b);
+  const maxWindIdx = winds.indexOf(Math.max(...winds));
+  const dominantWind = windDegs[maxWindIdx] || 0;
   return {
     tempF: avg(temps),
     windSpeedMph: avg(winds),
     windDeg: dominantWind,
     humidity: avg(humids),
-    precip: precips.reduce((a,b) => a+b, 0),
+    precip: precips.reduce((a,b) => a+b, 0), // total inches for period
     pressures: pressures,
   };
+}
+
+// Get weather alert icon for a day
+function getDayAlertIcon(data, dayIdx) {
+  const base = dayIdx * 24;
+  let maxPrecip = 0, minTemp = 999, maxWind = 0;
+  const pressureStart = data.hourly.surface_pressure[base] || 1013;
+  const pressureEnd = data.hourly.surface_pressure[Math.min(base + 23, data.hourly.surface_pressure.length - 1)] || 1013;
+  const pressureDrop = (pressureStart - pressureEnd) * 0.02953; // inHg
+
+  for (let h = 0; h < 24; h++) {
+    const i = base + h;
+    if (i >= data.hourly.temperature_2m.length) break;
+    maxPrecip += (data.hourly.precipitation[i] || 0);
+    minTemp = Math.min(minTemp, data.hourly.temperature_2m[i] || 999);
+    maxWind = Math.max(maxWind, data.hourly.windspeed_10m[i] || 0);
+  }
+
+  // Priority order: snow > ice > thunderstorm > rain > front > wind
+  if (minTemp <= 32 && maxPrecip > 0.1) return { icon: '❄', label: 'Snow/Ice', alert: true };
+  if (maxPrecip > 0.5 && maxWind > 20) return { icon: '⛈', label: 'Storms', alert: true };
+  if (maxPrecip > 0.3) return { icon: '🌧', label: 'Rain', alert: false };
+  if (pressureDrop > 0.10) return { icon: '🌬', label: 'Front', alert: true };
+  if (maxPrecip > 0.1) return { icon: '🌦', label: 'Showers', alert: false };
+  return null;
 }
 
 function renderDay(dayIdx) {
@@ -945,7 +998,7 @@ function renderDay(dayIdx) {
   const solunar = getSolunarPeriods(date, LAT, LON);
   const amResult = computeScore(amWeather, solunar, date, true);
   const pmResult = computeScore(pmWeather, solunar, date, false);
-  const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar);
+  const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx);
 
   const phase = getRutPhase(date);
   const todos = getTodos(date);
@@ -956,6 +1009,17 @@ function renderDay(dayIdx) {
   const pmClass = scoreClass(pmResult.score);
 
   let html = '';
+
+  // Weather event alert banner
+  const dayAlert = getDayAlertIcon(forecastData, dayIdx);
+  if (dayAlert && dayAlert.alert) {
+    const alertMsg = {
+      '❄': 'Snow or ice possible — dress for it and deer will be moving hard before it hits.',
+      '⛈': 'Storms coming — hunt the window before they arrive, deer feed hard ahead of severe weather.',
+      '🌬': 'Cold front pushing through — hunt the transition. Deer on their feet ahead of the front, then it goes quiet.',
+    };
+    html += `<div class="pressure-alert">${dayAlert.icon} ${alertMsg[dayAlert.icon] || 'Significant weather incoming — watch the timing.'}</div>`;
+  }
 
   // Pressure alert banner
   if (pTrend.trend === 'dropping') {
@@ -1112,12 +1176,15 @@ function renderWeekStrip(data) {
     const pmR = computeScore(pmW, sol, d, false);
     const best = Math.max(amR.score, pmR.score);
     const cls = scoreClass(best);
-    const label = i === 0 ? 'Today' : days[d.getDay()];
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
+    const alert = getDayAlertIcon(data, i);
+    const alertHtml = alert ? `<div class="tab-alert ${alert.alert ? 'hot' : ''}">${alert.icon}</div>` : '';
     html += `
-      <div class="day-tab ${i === selectedDay ? 'active' : ''}" onclick="selectDay(${i})">
+      <div class="day-tab ${i === selectedDay ? 'active' : ''} ${alert && alert.alert ? 'has-alert' : ''}" onclick="selectDay(${i})">
         <div class="dow">${label}</div>
         <div class="date-num">${d.getDate()}</div>
         <div class="tab-score ${cls}">${best}</div>
+        ${alertHtml}
       </div>
     `;
   }
