@@ -873,6 +873,11 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
     const majorStr = amResult.majors && amResult.majors.length > 0
       ? ` Major solunar hits at ${solunar.fmt(amResult.majors[0])}.` : '';
 
+    const amWindDir = windDirName(amWeather.windDeg);
+    const isStalkWind = ['N','NNE','NE','NNW'].includes(amWindDir) && amWeather.windSpeedMph >= 7 && amWeather.windSpeedMph <= 16;
+    const isStalkTemp = amWeather.tempF >= 38 && amWeather.tempF <= 68;
+    const isStalkHumid = amWeather.humidity >= 40 && amWeather.humidity <= 75;
+    const isGoodStalkDay = isStalkWind && isStalkTemp && isStalkHumid && amWeather.windSpeedMph > 3;
     const stalkNote = isGoodStalkDay ? ` Wind's steady ${amWindDir} at ${Math.round(amWeather.windSpeedMph)} mph — that ledge between the south stand and the creek bottom is set up for a stalk. Bryan might want to leave the saddle at home and work that edge.` : '';
 
     if (amResult.score >= 85) {
@@ -892,11 +897,7 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
 
   // Stalk condition check — Bryan's ledge between S stand and creek bottom
   // Good stalk day: steady NNE/N/NW wind 8-15 mph, overcast or partly cloudy, cool temps
-  const amWindDir = windDirName(amWeather.windDeg);
-  const isStalkWind = ['N','NNE','NE','NNW'].includes(amWindDir) && amWeather.windSpeedMph >= 7 && amWeather.windSpeedMph <= 16;
-  const isStalkTemp = amWeather.tempF >= 38 && amWeather.tempF <= 68;
-  const isStalkHumid = amWeather.humidity >= 40 && amWeather.humidity <= 75; // not too wet/dry — quiet ground
-  const isGoodStalkDay = isStalkWind && isStalkTemp && isStalkHumid && amWeather.windSpeedMph > 3;
+
 
   // PM summary
   if (pmResult.disqualified === 'wind') {
