@@ -359,6 +359,110 @@
     text-align: right;
     padding: 4px 14px 8px;
   }
+
+  /* Tab nav */
+  .tab-nav {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-nav-btn {
+    flex: 1;
+    padding: 10px 0;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    font-family: monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab-nav-btn.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
+  /* Season calendar */
+  .cal-view { padding: 14px 12px; max-width: 600px; margin: 0 auto; }
+  .cal-event {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .cal-event.today {
+    border-color: var(--green);
+    animation: pulse-green 1.5s ease-in-out 3;
+  }
+  @keyframes pulse-green {
+    0%,100% { box-shadow: 0 0 0 0 rgba(122,182,72,0); }
+    50% { box-shadow: 0 0 0 6px rgba(122,182,72,0.3); }
+  }
+  .cal-event-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cal-icon { font-size: 1.1rem; }
+  .cal-date {
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: var(--amber);
+    font-weight: bold;
+    min-width: 70px;
+  }
+  .cal-date.today-label { color: var(--green); }
+  .cal-title {
+    font-size: 0.85rem;
+    color: var(--text-bright);
+    font-family: 'Georgia', serif;
+  }
+  .cal-today-badge {
+    margin-left: auto;
+    background: var(--green);
+    color: var(--bg);
+    font-family: monospace;
+    font-size: 0.62rem;
+    font-weight: bold;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.06em;
+    animation: badge-pop 0.4s ease;
+  }
+  @keyframes badge-pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .cal-punches {
+    padding: 8px 14px 10px;
+  }
+  .cal-punch {
+    font-size: 0.78rem;
+    color: var(--text);
+    padding: 3px 0;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.4;
+  }
+  .cal-punch::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--green-dim);
+  }
+  .cal-season-tag {
+    font-size: 0.65rem;
+    font-family: monospace;
+    color: var(--text-dim);
+    padding: 0 14px 8px;
+  }
 </style>
 </head>
 <body>
@@ -368,18 +472,101 @@
   <p id="coords-label">36.678800, -96.078444 · Loading...</p>
 </header>
 
-<div class="week-strip" id="week-strip">
-  <div class="loading">Loading forecast...</div>
+<div class="tab-nav">
+  <button class="tab-nav-btn active" onclick="switchTab('forecast')">7-Day Forecast</button>
+  <button class="tab-nav-btn" onclick="switchTab('calendar')">Season Calendar</button>
 </div>
 
-<div class="main" id="main-content">
-  <div class="loading">Pulling weather data...</div>
+<div id="forecast-tab">
+  <div class="week-strip" id="week-strip">
+    <div class="loading">Loading forecast...</div>
+  </div>
+  <div class="main" id="main-content">
+    <div class="loading">Pulling weather data...</div>
+  </div>
+</div>
+
+<div id="calendar-tab" style="display:none">
+  <div class="cal-view" id="cal-content"></div>
 </div>
 
 <script>
 const LAT = 36.678800;
 const LON = -96.078444;
 const STAND_LABEL = "Bryan's Lease — Osage County";
+
+// Tab switching
+function switchTab(tab) {
+  document.getElementById('forecast-tab').style.display = tab === 'forecast' ? 'block' : 'none';
+  document.getElementById('calendar-tab').style.display = tab === 'calendar' ? 'block' : 'none';
+  document.querySelectorAll('.tab-nav-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'forecast') || (i === 1 && tab === 'calendar'));
+  });
+  if (tab === 'calendar') renderCalendar();
+}
+
+// Season calendar events
+const SEASON_EVENTS = [
+  // Oklahoma seasons
+  { month: 10, day: 1,  icon: '🏹', title: 'Archery Season Opens',        tag: 'Oklahoma Bow Season',     punches: ['Season is on — get in the stand', 'Check license and tags', 'Sight in your bow at hunting distances'] },
+  { month: 10, day: 16, icon: '🔫', title: 'Youth Gun Season Opens',       tag: 'Oct 16-18 only',          punches: ['Youth hunters only', 'Great time to bring Mason', 'Firearms legal this weekend'] },
+  { month: 10, day: 19, icon: '🏹', title: 'Youth Gun Season Closes',      tag: 'Back to archery only',    punches: ['Rifle put away — bow back in hand', 'Pattern any deer pushed by gun pressure'] },
+  { month: 10, day: 21, icon: '🦌', title: 'Pre-Rut Begins',              tag: 'Rut Phase',               punches: ['Start looking for scrapes', 'Put out the mock scrape dripper', 'Build a fake rub on a fresh sapling near a scrape', 'Hang estrus wick 20 yards upwind of your stand', 'Start calling — light buck tickling, not fighting', 'Check cameras on scrape lines', 'Hunt mornings hard'] },
+  { month: 10, day: 24, icon: '🔫', title: 'Muzzleloader Season Opens',    tag: 'Oct 24 - Nov 1',          punches: ['Muzzleloader legal alongside archery', 'Expect some pressure — deer may shift patterns', 'Hunt evenings away from pressure areas'] },
+  { month: 11, day: 1,  icon: '🦌', title: 'Seeking Phase Begins',         tag: 'Rut Phase — First Peak',  punches: ['Hunt all day — bucks don\'t punch a clock', 'Mock scrape dripper running', 'Use a doe bleat or soft grunt', 'Set up on pinch points between bedding and food', 'Light rattling — single buck looking for trouble', 'Check scrapes daily, they\'ll be torn up'] },
+  { month: 11, day: 1,  icon: '🏹', title: 'Muzzleloader Season Closes',   tag: 'Archery only again',      punches: ['Back to bow only', 'Seeking phase is on — best bow hunting of early November'] },
+  { month: 11, day: 9,  icon: '🦌', title: 'Lockdown / Peak Rut',          tag: 'Rut Phase — Main Peak',   punches: ['Hunt funnels all day', 'Aggressive rattling and blind calling', 'Don\'t burn your best stand — save it for an 80+ day', 'Doe groups will drag bucks anywhere', 'Stay flexible — bucks can appear anywhere'] },
+  { month: 11, day: 19, icon: '🦌', title: 'Post-Rut',                     tag: 'Rut Phase',               punches: ['Pull the dripper', 'Hunt food sources only', 'Bucks recovering — mornings hard, evenings soft', 'Doe groups tell you where bucks are staging'] },
+  { month: 11, day: 21, icon: '🔫', title: 'Gun Season Opens',             tag: 'Nov 21 - Dec 6',          punches: ['Rifle season is on', 'Expect heavy pressure opening weekend', 'Deer will shift — hunt edges and deep timber', 'Post-rut bucks chasing hard — still huntable'] },
+  { month: 12, day: 6,  icon: '🏹', title: 'Gun Season Closes',            tag: 'Back to archery only',    punches: ['Rifle pressure gone — deer settling back down', 'Late season patterns emerging', 'Hunt food sources hard'] },
+  { month: 12, day: 10, icon: '🦌', title: 'Second Rut',                   tag: 'Rut Phase — Secondary',   punches: ['Estrus wick back out', 'Mock scrape dripper back in service', 'Hunt like it\'s the seeking phase', 'Call and rattle again', 'Yearling does cycling — bucks will cruise'] },
+  { month: 1,  day: 15, icon: '🏹', title: 'Archery Season Closes',        tag: '2026-27 Season End',      punches: ['Last day of archery', 'Make it count', 'Clean and store your gear properly'] },
+];
+
+function renderCalendar() {
+  const cal = document.getElementById('cal-content');
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const todayM = today.getMonth() + 1;
+  const todayD = today.getDate();
+
+  // Filter out past events (keep today)
+  const upcoming = SEASON_EVENTS.filter(e => {
+    // Handle Jan events as next year
+    const year = e.month < 9 ? 2027 : 2026;
+    const eDate = new Date(year, e.month - 1, e.day);
+    eDate.setHours(0,0,0,0);
+    return eDate >= today;
+  });
+
+  if (upcoming.length === 0) {
+    cal.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-family:monospace">Season\'s over. See you next October.</div>';
+    return;
+  }
+
+  const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let html = '';
+  upcoming.forEach(e => {
+    const isToday = e.month === todayM && e.day === todayD;
+    html += `
+      <div class="cal-event ${isToday ? 'today' : ''}">
+        <div class="cal-event-header">
+          <span class="cal-icon">${e.icon}</span>
+          <span class="cal-date ${isToday ? 'today-label' : ''}">${monthNames[e.month]} ${e.day}</span>
+          <span class="cal-title">${e.title}</span>
+          ${isToday ? '<span class="cal-today-badge">TODAY</span>' : ''}
+        </div>
+        <div class="cal-season-tag">${e.tag}</div>
+        <div class="cal-punches">
+          ${e.punches.map(p => `<div class="cal-punch">${p}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  cal.innerHTML = html;
+}
 
 // Rut phase calendar for Washington/Osage County OK
 // Based on historical county activity curve
@@ -571,11 +758,11 @@ function scoreClass(score) {
 
 function scoreVerdict(score, isAM) {
   const session = isAM ? 'morning' : 'afternoon';
-  if (score >= 85) return `HUNT THE ${session.toUpperCase()} — DROP EVERYTHING`;
+  if (score >= 85) return `Boys, hunt the ${session}`;
   if (score >= 72) return `Hunt the ${session}`;
   if (score >= 55) return `Marginal ${session} — your call`;
-  if (score >= 40) return `Weak ${session} — consider skipping`;
-  return `Skip the ${session}`;
+  if (score >= 40) return `Probably skip the ${session}`;
+  return `Stay home — skip the ${session}`;
 }
 
 function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar) {
@@ -584,51 +771,52 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar) {
   const windDir = windDirName(amWeather.windDeg);
   const isMoneyAM = isMoneyWind(amWeather.windDeg);
   const pmDir = windDirName(pmWeather.windDeg);
+  const tempStr = `${Math.round(amWeather.tempF)}°`;
+  const windStr = `${Math.round(amWeather.windSpeedMph)} mph ${windDir}`;
+  const pmTempStr = `${Math.round(pmWeather.tempF)}°`;
+  const pmWindStr = `${Math.round(pmWeather.windSpeedMph)} mph ${pmDir}`;
 
   let amSummary = '';
   let pmSummary = '';
 
+  // Opening callout for big pressure drop
+  const pressureCallout = pTrend.trend === 'dropping'
+    ? ` Barometer's falling boys — deer are gonna be on their feet ahead of this front. Don't miss this window.`
+    : pTrend.trend === 'rising'
+    ? ` Pressure's coming back up after the front — deer are shaking off the bedding.`
+    : '';
+
   // AM summary
   if (amResult.disqualified === 'wind') {
-    amSummary = `Wind is too strong this morning at ${Math.round(amWeather.windSpeedMph)} mph. Deer won't move well and your scent control is compromised. Stay home.`;
+    amSummary = `Wind's running ${Math.round(amWeather.windSpeedMph)} mph tomorrow morning — too much. Scent's gonna be all over the place and deer won't be moving anyway. Stay home.`;
   } else if (amResult.disqualified === 'rain') {
-    amSummary = `Heavy rain this morning. Not worth it.`;
+    amSummary = `Heavy rain in the morning. Not worth burning a sit.`;
   } else {
-    const tempStr = `${Math.round(amWeather.tempF)}°F`;
-    const windStr = `${Math.round(amWeather.windSpeedMph)} mph ${windDir}`;
     const majorStr = amResult.majors && amResult.majors.length > 0
-      ? ` Major solunar at ${solunar.fmt(amResult.majors[0])}.` : '';
+      ? ` Major solunar hits at ${solunar.fmt(amResult.majors[0])}.` : '';
 
-    if (amResult.score >= 72) {
-      amSummary = `This morning is ${amResult.score >= 85 ? 'money' : 'solid'} — ${tempStr}, ${windStr}${isMoneyAM ? ' (money wind for the south stand)' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are on their feet — hunt hard and consider staying all day.' : 'Get in the stand before first light.'}`;
+    if (amResult.score >= 85) {
+      amSummary = `Hey fellas — tomorrow morning is money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind's in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}`;
+    } else if (amResult.score >= 72) {
+      amSummary = `Tomorrow morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind's right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}`;
     } else if (amResult.score >= 48) {
-      amSummary = `Marginal morning — ${tempStr} with ${windStr}. Conditions aren't ideal but deer could still move.${majorStr} Worth sitting if you've got the time.`;
+      amSummary = `Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${pressureCallout}`;
     } else {
-      amSummary = `Slow morning — ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'South wind is pulling humidity up. ' : ''}Not expecting much movement.`;
-    }
-
-    if (pTrend.trend === 'dropping') {
-      amSummary += ` Barometer is falling fast — deer are feeding hard ahead of this front. This is your window.`;
-    } else if (pTrend.trend === 'rising') {
-      amSummary += ` Pressure rising after the front — deer coming back out of bedding.`;
+      amSummary = `Slow morning tomorrow. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind's pulling humidity up — ' : ''}Not expecting much. Rest the stand.${pressureCallout}`;
     }
   }
 
   // PM summary
   if (pmResult.disqualified === 'wind') {
-    pmSummary = `Wind picks up to ${Math.round(pmWeather.windSpeedMph)} mph this afternoon. Rest the stand.`;
+    pmSummary = `Afternoon wind jumps to ${Math.round(pmWeather.windSpeedMph)} mph. Rest the stand — not worth it.`;
+  } else if (pmResult.score >= 72) {
+    pmSummary = `Afternoon holds up too — ${pmTempStr}, ${pmWindStr}. ${isMoneyWind(pmWeather.windDeg) ? 'Wind stays in your favor. ' : ''}Come back for the evening sit or stay all day.`;
+  } else if (pmWeather.tempF > 72 && isWarmHumidWind(pmWeather.windDeg)) {
+    pmSummary = `Afternoon warms to ${pmTempStr} with a ${pmDir} wind pulling Gulf moisture. Deer are gonna be bedded — they won't move until after dark. Pull out by noon and rest the stand for next time.`;
+  } else if (pmWeather.tempF > 72) {
+    pmSummary = `Afternoon heats up to ${pmTempStr}. ${pmDir} wind keeps the humidity down but it's still warm. Don't expect much until the last hour of light.`;
   } else {
-    const pmTempStr = `${Math.round(pmWeather.tempF)}°F`;
-    const pmWindStr = `${Math.round(pmWeather.windSpeedMph)} mph ${pmDir}`;
-    if (pmResult.score >= 72) {
-      pmSummary = `This afternoon holds up — ${pmTempStr}, ${pmWindStr}. ${isMoneyWind(pmWeather.windDeg) ? 'Wind stays in your favor. ' : ''}Stay or come back for the evening sit.`;
-    } else if (pmWeather.tempF > 72 && isWarmHumidWind(pmWeather.windDeg)) {
-      pmSummary = `This afternoon warms to ${pmTempStr} with a ${pmDir} wind pulling Gulf moisture. Deer will bed early and won't move until after dark. Pull out by noon and rest the stand.`;
-    } else if (pmWeather.tempF > 72) {
-      pmSummary = `Afternoon heats up to ${pmTempStr}. ${pmDir} wind keeps humidity in check but it's still warm. Expect slow movement until the last hour of light.`;
-    } else {
-      pmSummary = `Afternoon is ${pmTempStr} with ${pmWindStr}. Marginal — deer may move the last 45 minutes before dark.`;
-    }
+    pmSummary = `Afternoon is ${pmTempStr} with ${pmWindStr}. Marginal — deer might move the last 45 minutes before dark if you want to sit it.`;
   }
 
   return { amSummary, pmSummary };
@@ -691,7 +879,7 @@ const cToF = c => c * 9/5 + 32;
 const msToMph = ms => ms * 2.23694;
 
 let forecastData = null;
-let selectedDay = 0;
+let selectedDay = 1; // Default to tomorrow — night-before planning mode
 let huntLog = [];
 
 try {
@@ -771,7 +959,7 @@ function renderDay(dayIdx) {
 
   // Pressure alert banner
   if (pTrend.trend === 'dropping') {
-    html += `<div class="pressure-alert">⚠ Barometer dropping fast (${pTrend.delta.toFixed(3)}" Hg) — deer feeding hard ahead of incoming weather. Prime movement window.</div>`;
+    html += `<div class="pressure-alert">⚠ Boys — barometer's dropping fast. Deer are on their feet right now. Don't sit this one out.</div>`;
   }
 
   // Rut phase banner
@@ -857,7 +1045,7 @@ function renderDay(dayIdx) {
     html += `
       <div class="session-card">
         <div class="todo-box">
-          <div class="todo-label">Field Notes — ${phase.name}</div>
+          <div class="todo-label">While you're at it — ${phase.name}</div>
           ${todos.map(t => `<div class="todo-item">${t}</div>`).join('')}
         </div>
       </div>
@@ -947,9 +1135,11 @@ function selectDay(i) {
 async function init() {
   try {
     forecastData = await fetchForecast();
-    document.getElementById('coords-label').textContent = `${STAND_LABEL} · ${new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('coords-label').textContent = `${STAND_LABEL} · Tomorrow: ${tomorrow.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
     renderWeekStrip(forecastData);
-    renderDay(0);
+    renderDay(selectedDay); // defaults to tomorrow (index 1)
   } catch(e) {
     document.getElementById('main-content').innerHTML = `<div class="error-msg">Failed to load weather data. Check your connection and reload.<br><small>${e.message}</small></div>`;
     document.getElementById('week-strip').innerHTML = '';
