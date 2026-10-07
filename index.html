@@ -821,10 +821,10 @@ function windScore(speedMph, deg, rutPhase) {
     score = Math.min(100, score + 15);
   } else if (['S','SSE','SE'].includes(dir)) {
     // True south/SE — blowing scent back toward creek approach
-    score = Math.max(0, score - (isEarlySeason ? 12 : 22));
+    score = Math.max(0, score - (isEarlySeason ? 7 : 22));
   } else if (['SSW','SW'].includes(dir)) {
     // SW — entry concern but sit may still be fine
-    score = Math.max(0, score - (isEarlySeason ? 8 : 15));
+    score = Math.max(0, score - (isEarlySeason ? 4 : 15));
   } else if (['WSW','ESE','ENE'].includes(dir)) {
     // Crosswind — neutral to slight caution
     score = Math.max(0, score - 5);
@@ -884,7 +884,7 @@ function pressureScore(pTrend) {
   return 50; // steady — neutral
 }
 
-function computeScore(weather, solunar, date, isAM, dayIdx) {
+function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
   const { tempF, windSpeedMph, windDeg, humidity, precip, pressures } = weather;
   const pTrend = pressureTrend(pressures);
   const moonMult = solunar.moonInfo.mult;
@@ -896,12 +896,19 @@ function computeScore(weather, solunar, date, isAM, dayIdx) {
   const minors = [solunar.minor1, solunar.minor2].filter(h => isAM ? h < 12 : h >= 12);
   const solunarScore = majors.length > 0 ? 90 : minors.length > 0 ? 65 : 40;
 
-  // Solunar proximity bonus — minor within 90 min of prime movement window gets a bump
-  // Accounts for real-world observation: deer move near solunar windows even if not perfectly timed
-  const sessionMidHour = isAM ? 7.5 : 16.5; // center of AM (7:30) and PM (4:30) sessions
+  // Crepuscular solunar bonus — periods near civil twilight are the most valuable
+  // Deer are hardwired to peak at dawn/dusk regardless of other conditions
+  const twilightAnchor = civilTwilight || (isAM ? 7.0 : 19.5);
   const allPeriods = [solunar.major1, solunar.major2, solunar.minor1, solunar.minor2];
-  const closestPeriod = Math.min(...allPeriods.map(h => Math.abs(h - sessionMidHour)));
-  const solunarProximityBonus = closestPeriod <= 1.5 ? 9 : closestPeriod <= 2.5 ? 5 : 0;
+  const majorsInSession = [solunar.major1, solunar.major2].filter(h => isAM ? (h >= 6 && h < 10) : (h >= 14 && h < 19));
+  const minorsInSession = [solunar.minor1, solunar.minor2].filter(h => isAM ? (h >= 6 && h < 10) : (h >= 14 && h < 19));
+  const closestToTwilight = Math.min(...allPeriods.map(h => Math.abs(h - twilightAnchor)));
+  // Big bonus if a major overlaps twilight window, smaller for minor, nothing for periods outside session
+  const solunarProximityBonus = closestToTwilight <= 0.75 ? 12 :  // within 45 min of twilight
+                                 closestToTwilight <= 1.5  ? 8  :  // within 90 min
+                                 majorsInSession.length > 0 ? 6  :  // major in session
+                                 minorsInSession.length > 0 ? 3  :  // minor in session
+                                 0;
 
   const phase = getRutPhase(date);
   const wScore = windScore(windSpeedMph, windDeg, phase.name);
@@ -982,7 +989,7 @@ function getForecastConfidence(dayIdx) {
   return { hedge: 'This far out it\'s more a heads-up than a verdict — ', closing: ' Way too early to set your alarm, but circle it.' };
 }
 
-function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx) {
+function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx, sunriseHour, sunsetHour) {
   const phase = getRutPhase(date);
   const pTrend = amResult.pTrend;
   const windDir = windDirName(amWeather.windDeg);
@@ -1010,8 +1017,18 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
   } else if (amResult.disqualified === 'rain') {
     amSummary = `Heavy rain in the morning. Not worth burning a sit.`;
   } else {
-    const majorStr = amResult.majors && amResult.majors.length > 0
-      ? ` Major solunar hits at ${solunar.fmt(amResult.majors[0])}.` : '';
+    // Only reference solunar periods that fall within the actual hunting window (6:30-10am)
+    const sessionMajors = [solunar.major1, solunar.major2].filter(h => h >= 6.5 && h < 10);
+    const sessionMinors = [solunar.minor1, solunar.minor2].filter(h => h >= 6.5 && h < 10);
+    const srHour = sunriseHour || 7.0;
+    const twilightMajors = [solunar.major1, solunar.major2].filter(h => Math.abs(h - srHour) <= 0.75);
+    const majorStr = twilightMajors.length > 0
+      ? ` Major solunar overlaps sunrise at ${solunar.fmt(twilightMajors[0])} — that is a prime window.`
+      : sessionMajors.length > 0
+      ? ` Major solunar at ${solunar.fmt(sessionMajors[0])}.`
+      : sessionMinors.length > 0
+      ? ` Minor solunar at ${solunar.fmt(sessionMinors[0])}.`
+      : '';
 
     const amWindDir = windDirName(amWeather.windDeg);
     const isStalkWind = ['N','NNE','NE','NNW'].includes(amWindDir) && amWeather.windSpeedMph >= 7 && amWeather.windSpeedMph <= 16;
@@ -1135,19 +1152,9 @@ function daysSinceLastHunt() {
 async function fetchForecast() {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,precipitation,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure&daily=sunrise,sunset&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=America%2FChicago&forecast_days=7`;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-  try {
-    const resp = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (!resp.ok) throw new Error(`Weather fetch failed: ${resp.status}`);
-    return resp.json();
-  } catch(e) {
-    clearTimeout(timeout);
-    if (e.name === 'AbortError') throw new Error('Weather request timed out — check your connection and reload.');
-    throw e;
-  }
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Weather fetch failed: ${resp.status}`);
+  return resp.json();
 }
 
 function getHourlySlice(data, dayIdx, startHour, endHour) {
@@ -1212,13 +1219,21 @@ function renderDay(dayIdx) {
   const date = new Date(baseDate);
   date.setDate(date.getDate() + dayIdx);
 
-  const amWeather = getHourlySlice(data, dayIdx, 5, 10);  // 5am-10am
+  const amWeather = getHourlySlice(data, dayIdx, 6, 10);  // 6am-10am (in stand by 6:30, first light ~7)
   const pmWeather = getHourlySlice(data, dayIdx, 14, 19); // 2pm-7pm
 
+  // Parse sunrise/sunset for this day
+  const sunriseStr = data.daily && data.daily.sunrise && data.daily.sunrise[dayIdx];
+  const sunsetStr = data.daily && data.daily.sunset && data.daily.sunset[dayIdx];
+  const sunriseHour = sunriseStr ? new Date(sunriseStr).getHours() + new Date(sunriseStr).getMinutes()/60 : 7.0;
+  const sunsetHour = sunsetStr ? new Date(sunsetStr).getHours() + new Date(sunsetStr).getMinutes()/60 : 19.5;
+  const civilTwilightAM = sunriseHour - 0.5; // 30 min before sunrise
+  const civilTwilightPM = sunsetHour + 0.5;  // 30 min after sunset
+
   const solunar = getSolunarPeriods(date, LAT, LON);
-  const amResult = computeScore(amWeather, solunar, date, true, dayIdx);
-  const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx);
-  const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx);
+  const amResult = computeScore(amWeather, solunar, date, true, dayIdx, civilTwilightAM);
+  const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx, civilTwilightPM);
+  const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx, sunriseHour, sunsetHour);
 
   const phase = getRutPhase(date);
   const todos = getTodos(date);
@@ -1261,7 +1276,7 @@ function renderDay(dayIdx) {
   html += `
     <div class="session-card">
       <div class="session-header">
-        <div class="session-label">Morning Sit · First light–10am</div>
+        <div class="session-label">Morning Sit · ${sunriseStr ? 'Sunrise ' + solunar.fmt(sunriseHour) : 'First light'} · In stand by 6:30am</div>
         <div class="verdict ${amClass}">${scoreVerdict(amResult.score, true)}</div>
       </div>
       <div class="score-bar-wrap">
@@ -1483,8 +1498,8 @@ function renderWeekStrip(data) {
     const amW = getHourlySlice(data, i, 5, 10);
     const pmW = getHourlySlice(data, i, 14, 19);
     const sol = getSolunarPeriods(d, LAT, LON);
-    const amR = computeScore(amW, sol, d, true, i);
-    const pmR = computeScore(pmW, sol, d, false, i);
+    const amR = computeScore(amW, sol, d, true, i, 6.5);  // civil twilight ~6:30am
+    const pmR = computeScore(pmW, sol, d, false, i, 19.5); // civil twilight ~7:30pm
     const best = Math.max(amR.score, pmR.score);
     const cls = scoreClass(best);
     const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
