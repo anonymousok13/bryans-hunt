@@ -490,8 +490,9 @@
 </header>
 
 <div class="tab-nav">
-  <button class="tab-nav-btn active" onclick="switchTab('forecast')">7-Day Forecast</button>
-  <button class="tab-nav-btn" onclick="switchTab('calendar')">Season Calendar</button>
+  <button class="tab-nav-btn active" onclick="switchTab('forecast')">Forecast</button>
+  <button class="tab-nav-btn" onclick="switchTab('calendar')">Season</button>
+  <button class="tab-nav-btn" onclick="switchTab('deerid')">Deer ID</button>
 </div>
 
 <div id="forecast-tab">
@@ -507,6 +508,25 @@
   <div class="cal-view" id="cal-content"></div>
 </div>
 
+<div id="deerid-tab" style="display:none">
+  <div class="cal-view" id="deerid-content">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px">
+      <div style="font-size:0.72rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px">Shoot or Pass? · Osage County Standard</div>
+      <div style="font-size:0.8rem;color:var(--text);margin-bottom:12px;line-height:1.5">Upload a trail cam pic or field photo. Claude will evaluate body maturity, tine mass, and frame — and give you a plain English read.</div>
+      <input type="file" id="deer-photo-input" accept="image/*" style="display:none" onchange="evaluateDeer()">
+      <button onclick="document.getElementById('deer-photo-input').click()" style="background:var(--green-dim);color:var(--text-bright);border:none;font-family:monospace;font-size:0.8rem;padding:10px 20px;border-radius:4px;cursor:pointer;width:100%">📷 Upload Photo</button>
+    </div>
+    <div id="deer-result"></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px">
+      <div style="font-size:0.65rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px">Your Standard</div>
+      <div style="font-size:0.75rem;color:var(--text);line-height:1.6">
+        Shooter: Mature body with thick neck, swayed back, big belly. Heavy bases and fat tines — mass over spread. 3.5+ years minimum.<br><br>
+        Pass: Slim neck, long legs relative to body depth, pencil tines. Doesn't matter how wide if he's still a 2.5.
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const LAT = 36.678800;
 const LON = -96.078444;
@@ -516,10 +536,96 @@ const STAND_LABEL = "Bryan's Lease — Osage County";
 function switchTab(tab) {
   document.getElementById('forecast-tab').style.display = tab === 'forecast' ? 'block' : 'none';
   document.getElementById('calendar-tab').style.display = tab === 'calendar' ? 'block' : 'none';
+  document.getElementById('deerid-tab').style.display = tab === 'deerid' ? 'block' : 'none';
   document.querySelectorAll('.tab-nav-btn').forEach((b, i) => {
-    b.classList.toggle('active', (i === 0 && tab === 'forecast') || (i === 1 && tab === 'calendar'));
+    b.classList.toggle('active',
+      (i === 0 && tab === 'forecast') ||
+      (i === 1 && tab === 'calendar') ||
+      (i === 2 && tab === 'deerid')
+    );
   });
   if (tab === 'calendar') renderCalendar();
+}
+
+// Deer ID evaluation
+async function evaluateDeer() {
+  const input = document.getElementById('deer-photo-input');
+  const result = document.getElementById('deer-result');
+  if (!input.files || !input.files[0]) return;
+
+  const file = input.files[0];
+  result.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px;text-align:center;font-family:monospace;font-size:0.8rem;color:var(--text-dim)">Evaluating...</div>`;
+
+  try {
+    // Convert image to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const mediaType = file.type || 'image/jpeg';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: base64 }
+            },
+            {
+              type: 'text',
+              text: `You are a whitetail deer hunting advisor for a private lease in Osage County, NE Oklahoma. Evaluate this deer photo and give a shoot/pass recommendation.
+
+THEIR STANDARD: Mature body (thick neck, swayed back, heavy belly), heavy bases, fat tines with good mass. Tine mass matters more than spread or point count. 3.5+ years minimum. A wide deer with pencil tines is a pass. A compact deer with heavy mass is a shooter.
+
+Signs of maturity: thick neck blending into shoulders, belly sag, swayed back, short legs relative to deep body, Roman nose, dark tarsal glands.
+Signs of youth: slim neck, long legs relative to body depth, flat back, pencil-thin tines, tight belly.
+
+Also note: a big mature doe is a legitimate harvest target.
+
+If the image quality is too poor (dark trail cam, silhouette, too far away) to make a confident call, say so plainly.
+
+Respond in 3-4 sentences max. Start with SHOOTER, PASS, BIG DOE — SHOOTER, or NEED BETTER LOOK. Then explain why in plain buddy language, like you're texting a hunting partner.`
+            }
+          ]
+        })
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Could not evaluate — try again.';
+
+    // Color code based on verdict
+    const isShooter = text.startsWith('SHOOTER') || text.startsWith('BIG DOE');
+    const isPass = text.startsWith('PASS');
+    const borderColor = isShooter ? 'var(--green)' : isPass ? 'var(--red)' : 'var(--amber)';
+    const bgColor = isShooter ? 'rgba(122,182,72,0.08)' : isPass ? 'rgba(200,74,42,0.08)' : 'rgba(200,146,42,0.08)';
+
+    // Show photo preview + result
+    const objectUrl = URL.createObjectURL(file);
+    result.innerHTML = `
+      <div style="background:var(--bg2);border:1px solid ${borderColor};border-radius:6px;overflow:hidden;margin-bottom:8px">
+        <img src="${objectUrl}" style="width:100%;max-height:280px;object-fit:cover;display:block">
+        <div style="padding:14px;background:${bgColor};font-size:0.85rem;line-height:1.6;color:var(--text-bright)">${text}</div>
+      </div>
+      <button onclick="clearDeerResult()" style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.72rem;padding:6px 14px;border-radius:4px;cursor:pointer">Try another photo</button>
+    `;
+  } catch(e) {
+    result.innerHTML = `<div style="background:rgba(200,74,42,0.1);border:1px solid rgba(200,74,42,0.3);border-radius:6px;padding:12px;font-family:monospace;font-size:0.78rem;color:var(--red)">Evaluation failed — check your connection and try again.<br><small>${e.message}</small></div>`;
+  }
+}
+
+function clearDeerResult() {
+  document.getElementById('deer-result').innerHTML = '';
+  document.getElementById('deer-photo-input').value = '';
 }
 
 // Season calendar events
@@ -678,7 +784,8 @@ function windDirName(deg) {
 }
 
 function isMoneyWind(deg) {
-  // NNE, NE, N, NW winds are good for the south ladder stand
+  // NNE wind blows FROM NNE, carrying scent SSW — offset from due-south deer approach
+  // Both stands benefit: scent pushed away from creek bottom deer approach
   const dir = windDirName(deg);
   return ['N','NNE','NE','NNW','WNW'].includes(dir);
 }
@@ -688,18 +795,42 @@ function isWarmHumidWind(deg) {
   return ['S','SSW','SW','SSE','SE'].includes(dir);
 }
 
-function windScore(speedMph, deg) {
+function isCautiousEntryWind(deg) {
+  // SW entry puts scent on south end before you climb — warn but don't kill score
+  const dir = windDirName(deg);
+  return ['SW','WSW'].includes(dir);
+}
+
+function windScore(speedMph, deg, rutPhase) {
   let score = 0;
-  // Speed scoring
+  // Speed scoring — 5 mph steady is never a dealbreaker
   if (speedMph >= 4 && speedMph <= 10) score = 100;
-  else if (speedMph < 4) score = 60; // dead calm — scent pools
-  else if (speedMph <= 15) score = 75;
-  else if (speedMph <= 20) score = 40;
+  else if (speedMph < 4) score = 65; // dead calm — scent pools but manageable
+  else if (speedMph <= 15) score = 78;
+  else if (speedMph <= 20) score = 45;
   else if (speedMph <= 25) score = 15;
   else score = 0;
-  // Direction bonus/penalty
-  if (isMoneyWind(deg)) score = Math.min(100, score + 15);
-  else if (isWarmHumidWind(deg)) score = Math.max(0, score - 20);
+
+  // Direction scoring — scaled by rut phase
+  // Early season: deer less pressure-sensitive, south wind is caution not dealbreaker
+  // Rut phases: south wind more problematic as deer are covering more ground
+  const dir = windDirName(deg);
+  const isEarlySeason = rutPhase === 'Early Season' || rutPhase === 'Pre-Rut';
+
+  if (isMoneyWind(deg)) {
+    score = Math.min(100, score + 15);
+  } else if (['S','SSE','SE'].includes(dir)) {
+    // True south/SE — blowing scent back toward creek approach
+    score = Math.max(0, score - (isEarlySeason ? 12 : 22));
+  } else if (['SSW','SW'].includes(dir)) {
+    // SW — entry concern but sit may still be fine
+    score = Math.max(0, score - (isEarlySeason ? 8 : 15));
+  } else if (['WSW','ESE','ENE'].includes(dir)) {
+    // Crosswind — neutral to slight caution
+    score = Math.max(0, score - 5);
+  }
+  // E, NE, NNE, N, NW, WNW already handled by isMoneyWind above
+
   return score;
 }
 
@@ -765,7 +896,15 @@ function computeScore(weather, solunar, date, isAM, dayIdx) {
   const minors = [solunar.minor1, solunar.minor2].filter(h => isAM ? h < 12 : h >= 12);
   const solunarScore = majors.length > 0 ? 90 : minors.length > 0 ? 65 : 40;
 
-  const wScore = windScore(windSpeedMph, windDeg);
+  // Solunar proximity bonus — minor within 90 min of prime movement window gets a bump
+  // Accounts for real-world observation: deer move near solunar windows even if not perfectly timed
+  const sessionMidHour = isAM ? 7.5 : 16.5; // center of AM (7:30) and PM (4:30) sessions
+  const allPeriods = [solunar.major1, solunar.major2, solunar.minor1, solunar.minor2];
+  const closestPeriod = Math.min(...allPeriods.map(h => Math.abs(h - sessionMidHour)));
+  const solunarProximityBonus = closestPeriod <= 1.5 ? 9 : closestPeriod <= 2.5 ? 5 : 0;
+
+  const phase = getRutPhase(date);
+  const wScore = windScore(windSpeedMph, windDeg, phase.name);
   const tScore = tempScore(tempF, windDeg, humidity);
   const pScore = precipScore(precip);
   const bScore = pressureScore(pTrend); // barometric
@@ -815,7 +954,8 @@ function computeScore(weather, solunar, date, isAM, dayIdx) {
     pScore       * wPrecip   +
     solunarScore * wSolunar  +
     moonMult * 100 * wMoon   +
-    rutMult  * 100 * wRut;
+    rutMult  * 100 * wRut    +
+    solunarProximityBonus;
 
   return { score: Math.min(100, Math.round(raw)), disqualified: null, pTrend, majors, minors };
 }
@@ -879,15 +1019,16 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
     const isStalkHumid = amWeather.humidity >= 40 && amWeather.humidity <= 75;
     const isGoodStalkDay = isStalkWind && isStalkTemp && isStalkHumid && amWeather.windSpeedMph > 3;
     const stalkNote = isGoodStalkDay ? ` Wind's steady ${amWindDir} at ${Math.round(amWeather.windSpeedMph)} mph — that ledge between the south stand and the creek bottom is set up for a stalk. Bryan might want to leave the saddle at home and work that edge.` : '';
+    const entryWarning = isCautiousEntryWind(amWeather.windDeg) ? ` Watch your entry — ${amWindDir} wind could put scent on the south end before you climb. Come in from the north or east.` : '';
 
     if (amResult.score >= 85) {
-      amSummary = `${confidence.hedge}Hey fellas — morning looks like money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind\'s in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}${stalkNote}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Hey fellas — morning looks like money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind\'s in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}${stalkNote}${entryWarning}${confidence.closing}`;
     } else if (amResult.score >= 72) {
-      amSummary = `${confidence.hedge}Morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind\'s right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}${stalkNote}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind\'s right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}${stalkNote}${entryWarning}${confidence.closing}`;
     } else if (amResult.score >= 48) {
-      amSummary = `${confidence.hedge}Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${stalkNote}${pressureCallout}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${stalkNote}${entryWarning}${pressureCallout}${confidence.closing}`;
     } else {
-      amSummary = `${confidence.hedge}Slow morning. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind\'s pulling humidity up — ' : ''}Not expecting much. Rest the stand.${pressureCallout}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Slow morning. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind\'s pulling humidity up — ' : ''}Not expecting much. Rest the stand.${entryWarning}${pressureCallout}${confidence.closing}`;
     }
   }
 
