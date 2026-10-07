@@ -382,6 +382,9 @@
     display: flex;
     background: var(--bg2);
     border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 9;
   }
   .tab-nav-btn {
     flex: 1;
@@ -593,7 +596,7 @@ Also note: a big mature doe is a legitimate harvest target.
 
 If the image quality is too poor (dark trail cam, silhouette, too far away) to make a confident call, say so plainly.
 
-Respond in 3-4 sentences max. Start with SHOOTER, PASS, BIG DOE — SHOOTER, or NEED BETTER LOOK. Then explain why in plain buddy language, like you're texting a hunting partner.`
+Respond in 3-4 sentences max. Start with SHOOTER, PASS, BIG DOE - SHOOTER, or NEED BETTER LOOK. Then explain why in plain buddy language, like you're texting a hunting partner.`
             }
           ]
         })
@@ -601,7 +604,7 @@ Respond in 3-4 sentences max. Start with SHOOTER, PASS, BIG DOE — SHOOTER, or 
     });
 
     const data = await response.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || 'Could not evaluate — try again.';
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Could not evaluate - try again.';
 
     // Color code based on verdict
     const isShooter = text.startsWith('SHOOTER') || text.startsWith('BIG DOE');
@@ -1526,6 +1529,14 @@ async function init() {
 }
 
 init();
+
+// If still loading after 12 seconds, show a reload button
+setTimeout(() => {
+  const main = document.getElementById('main-content');
+  if (main && main.innerHTML.includes('Pulling weather data')) {
+    main.innerHTML = `<div class="error-msg">Taking longer than expected.<br><button onclick="location.reload()" style="margin-top:10px;background:var(--green-dim);color:var(--text-bright);border:none;font-family:monospace;font-size:0.78rem;padding:8px 16px;border-radius:4px;cursor:pointer">Reload</button></div>`;
+  }
+}, 12000);
 </script>
 </body>
 </html>
