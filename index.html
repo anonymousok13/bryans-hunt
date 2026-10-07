@@ -570,6 +570,14 @@ async function evaluateDeer() {
 
     const mediaType = file.type || 'image/jpeg';
 
+    const prompt = 'You are a whitetail deer hunting advisor for a private lease in Osage County, NE Oklahoma. Evaluate this deer photo and give a shoot/pass recommendation. ' +
+      'THEIR STANDARD: Mature body with thick neck, swayed back, heavy belly. Heavy bases and fat tines - mass matters more than spread or point count. 3.5+ years minimum. Wide deer with pencil tines is a pass. Compact deer with heavy mass is a shooter. ' +
+      'Signs of maturity: thick neck blending into shoulders, belly sag, swayed back, short legs relative to deep body, Roman nose, dark tarsal glands. ' +
+      'Signs of youth: slim neck, long legs relative to body depth, flat back, pencil-thin tines, tight belly. ' +
+      'A big mature doe is also a legitimate harvest target. ' +
+      'If image quality is too poor to call it, say so plainly. ' +
+      'Respond in 3-4 sentences max. Start with SHOOTER, PASS, BIG DOE - SHOOTER, or NEED BETTER LOOK. Then explain why in plain buddy language like texting a hunting partner.';
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -585,21 +593,10 @@ async function evaluateDeer() {
             },
             {
               type: 'text',
-              text: `You are a whitetail deer hunting advisor for a private lease in Osage County, NE Oklahoma. Evaluate this deer photo and give a shoot/pass recommendation.
-
-THEIR STANDARD: Mature body (thick neck, swayed back, heavy belly), heavy bases, fat tines with good mass. Tine mass matters more than spread or point count. 3.5+ years minimum. A wide deer with pencil tines is a pass. A compact deer with heavy mass is a shooter.
-
-Signs of maturity: thick neck blending into shoulders, belly sag, swayed back, short legs relative to deep body, Roman nose, dark tarsal glands.
-Signs of youth: slim neck, long legs relative to body depth, flat back, pencil-thin tines, tight belly.
-
-Also note: a big mature doe is a legitimate harvest target.
-
-If the image quality is too poor (dark trail cam, silhouette, too far away) to make a confident call, say so plainly.
-
-Respond in 3-4 sentences max. Start with SHOOTER, PASS, BIG DOE - SHOOTER, or NEED BETTER LOOK. Then explain why in plain buddy language, like you're texting a hunting partner.`
+              text: prompt
             }
           ]
-        })
+        }]
       })
     });
 
