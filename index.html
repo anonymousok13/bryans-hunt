@@ -1134,9 +1134,20 @@ function daysSinceLastHunt() {
 
 async function fetchForecast() {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,precipitation,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure&daily=sunrise,sunset&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=America%2FChicago&forecast_days=7`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`Weather fetch failed: ${resp.status}`);
-  return resp.json();
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!resp.ok) throw new Error(`Weather fetch failed: ${resp.status}`);
+    return resp.json();
+  } catch(e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') throw new Error('Weather request timed out — check your connection and reload.');
+    throw e;
+  }
 }
 
 function getHourlySlice(data, dayIdx, startHour, endHour) {
