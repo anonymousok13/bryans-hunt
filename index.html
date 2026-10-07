@@ -376,6 +376,18 @@
   .day-tab.has-alert.active {
     border-color: var(--green);
   }
+  .day-tab.prime-day {
+    border-color: gold;
+    box-shadow: 0 0 6px rgba(255,215,0,0.4);
+    animation: pulse-gold 2s ease-in-out infinite;
+  }
+  .day-tab.prime-day.active {
+    border-color: gold;
+  }
+  @keyframes pulse-gold {
+    0%,100% { box-shadow: 0 0 6px rgba(255,215,0,0.3); }
+    50% { box-shadow: 0 0 12px rgba(255,215,0,0.7); }
+  }
 
   /* Tab nav */
   .tab-nav {
@@ -1261,6 +1273,11 @@ function renderDay(dayIdx) {
     html += `<div class="pressure-alert">⚠ Boys — barometer's dropping fast. Deer are on their feet right now. Don't sit this one out.</div>`;
   }
 
+  // Prime all-day banner
+  if (amResult.score >= 80 && pmResult.score >= 80) {
+    html += `<div class="pressure-alert" style="border-color:gold;background:rgba(255,215,0,0.08);color:gold">★ PRIME ALL-DAY SIT — Both morning and afternoon are money. Pack a sandwich, extra water, and don't come down until dark.</div>`;
+  }
+
   // Rut phase banner
   html += `
     <div class="rut-banner">
@@ -1505,12 +1522,14 @@ function renderWeekStrip(data) {
     const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
     const alert = getDayAlertIcon(data, i);
     const alertHtml = alert ? `<div class="tab-alert ${alert.alert ? 'hot' : ''}">${alert.icon}</div>` : '';
+    const isPrimeDay = amR.score >= 80 && pmR.score >= 80;
+    const primeHtml = isPrimeDay ? '<div style="font-size:0.6rem;color:gold">★ ALL DAY</div>' : '';
     html += `
-      <div class="day-tab ${i === selectedDay ? 'active' : ''} ${alert && alert.alert ? 'has-alert' : ''}" onclick="selectDay(${i})">
+      <div class="day-tab ${i === selectedDay ? 'active' : ''} ${isPrimeDay ? 'prime-day' : alert && alert.alert ? 'has-alert' : ''}" onclick="selectDay(${i})">
         <div class="dow">${label}</div>
         <div class="date-num">${d.getDate()}</div>
         <div class="tab-score ${cls}">${best}</div>
-        ${alertHtml}
+        ${alertHtml}${primeHtml}
       </div>
     `;
   }
