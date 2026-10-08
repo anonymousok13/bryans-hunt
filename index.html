@@ -929,6 +929,7 @@ function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
   const bScore = pressureScore(pTrend); // barometric
 
   // Disqualifiers — always apply regardless of day distance
+  if (tempF > 85) return { score: 5, disqualified: 'heat', pTrend, majors, minors };
   if (windSpeedMph > 22) return { score: 15, disqualified: 'wind', pTrend, majors, minors };
   if (precip > 0.5) return { score: 10, disqualified: 'rain', pTrend, majors, minors };
 
@@ -985,8 +986,11 @@ function scoreClass(score) {
   return 'skip';
 }
 
-function scoreVerdict(score, isAM) {
+function scoreVerdict(score, isAM, disqualified) {
   const session = isAM ? 'morning' : 'afternoon';
+  if (disqualified === 'heat') return `Too hot — stay home`;
+  if (disqualified === 'wind') return `Too windy — stay home`;
+  if (disqualified === 'rain') return `Skip it — rain`;
   if (score >= 85) return `Boys, hunt the ${session}`;
   if (score >= 72) return `Hunt the ${session}`;
   if (score >= 55) return `Marginal ${session} — your call`;
@@ -1024,7 +1028,9 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
     : '';
 
   // AM summary
-  if (amResult.disqualified === 'wind') {
+  if (amResult.disqualified === 'heat') {
+    amSummary = `${Math.round(amWeather.tempF)}° in the morning — too damn hot. Deer aren't moving in this heat. Stay home and save the stand.`;
+  } else if (amResult.disqualified === 'wind') {
     amSummary = `Wind's running ${Math.round(amWeather.windSpeedMph)} mph tomorrow morning — too much. Scent's gonna be all over the place and deer won't be moving anyway. Stay home.`;
   } else if (amResult.disqualified === 'rain') {
     amSummary = `Heavy rain in the morning. Not worth burning a sit.`;
@@ -1070,7 +1076,9 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
 
 
   // PM summary
-  if (pmResult.disqualified === 'wind') {
+  if (pmResult.disqualified === 'heat') {
+    pmSummary = `${Math.round(pmWeather.tempF)}° this afternoon. Way too hot. Deer are bedded and not moving. Don't burn the stand.`;
+  } else if (pmResult.disqualified === 'wind') {
     pmSummary = `Afternoon wind jumps to ${Math.round(pmWeather.windSpeedMph)} mph. Rest the stand — not worth it.`;
   } else if (pmResult.score >= 72) {
     pmSummary = `Afternoon holds up too — ${pmTempStr}, ${pmWindStr}. ${isMoneyWind(pmWeather.windDeg) ? 'Wind stays in your favor. ' : ''}Come back for the evening sit or stay all day.${gunSeasonNote}`;
@@ -1294,7 +1302,7 @@ function renderDay(dayIdx) {
     <div class="session-card">
       <div class="session-header">
         <div class="session-label">Morning Sit · ${sunriseStr ? 'Sunrise ' + solunar.fmt(sunriseHour) : 'First light'} · In stand by 6:30am</div>
-        <div class="verdict ${amClass}">${scoreVerdict(amResult.score, true)}</div>
+        <div class="verdict ${amClass}">${scoreVerdict(amResult.score, true, amResult.disqualified)}</div>
       </div>
       <div class="score-bar-wrap">
         <div class="score-bar-bg"><div class="score-bar-fill ${amClass}" style="width:${amResult.score}%"></div></div>
@@ -1332,7 +1340,7 @@ function renderDay(dayIdx) {
     <div class="session-card">
       <div class="session-header">
         <div class="session-label">Evening Sit · 2pm–Dark</div>
-        <div class="verdict ${pmClass}">${scoreVerdict(pmResult.score, false)}</div>
+        <div class="verdict ${pmClass}">${scoreVerdict(pmResult.score, false, pmResult.disqualified)}</div>
       </div>
       <div class="score-bar-wrap">
         <div class="score-bar-bg"><div class="score-bar-fill ${pmClass}" style="width:${pmResult.score}%"></div></div>
