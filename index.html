@@ -1267,21 +1267,29 @@ function scoreClass(score) {
 
 function scoreVerdict(score, isAM, disqualified) {
   const session = isAM ? 'morning' : 'afternoon';
-  if (disqualified === 'heat') return `Too hot — stay home`;
-  if (disqualified === 'wind') return `Too windy — stay home`;
-  if (disqualified === 'rain') return `Skip it — rain`;
-  if (score >= 85) return `Boys, hunt the ${session}`;
-  if (score >= 72) return `Hunt the ${session}`;
-  if (score >= 55) return `Marginal ${session} — your call`;
-  if (score >= 40) return `Probably skip the ${session}`;
-  return `Stay home — skip the ${session}`;
+  const pick = arr => arr[Math.floor(Date.now() / 60000) % arr.length];
+  if (disqualified === 'heat') return pick([`Too hot — stay home`, `Heat's a killer — rest the stand`, `Too warm — deer aren't moving`, `Skip it — way too hot`]);
+  if (disqualified === 'wind') return pick([`Too windy — stay home`, `Wind's wrecked it — stay home`, `Too much wind — don't burn the stand`, `Blowing too hard — skip it`]);
+  if (disqualified === 'rain') return pick([`Skip it — rain`, `Not in the rain — rest the stand`, `Rain's gonna ruin it — stay home`, `Wet and slow — skip it`]);
+  if (score >= 100) return pick([
+    `Holy SHIT. This is the one you've been waiting for. You'll tell stories about this one. Tell the wife you'll see her when the buck is in the cooler.`,
+    `Drop everything. Call in sick. This is a unicorn day — the kind you tell your grandkids about. Get. In. The. Stand.`,
+    `Perfect conditions. Every single box checked. If you don't go today you don't deserve a buck.`,
+    `This is what all those slow sits were for. 100. Don't you dare stay home.`,
+    `The algorithm doesn't lie and it's never said this before. Go. Now.`
+  ]);
+  if (score >= 85) return pick([`Boys, hunt the ${session}`, `Get in the stand — this is it`, `Don't miss this ${session}`, `Prime ${session} — let's go`, `This is the one boys`, `All systems go — hunt it`]);
+  if (score >= 72) return pick([`Hunt the ${session}`, `Set the alarm — worth it`, `Good ${session} — go`, `Conditions are there — hunt it`, `Worth the sit`, `Go hunting`]);
+  if (score >= 55) return pick([`Marginal ${session} — your call`, `Could go either way`, `Not great, not terrible`, `Deer might move — up to you`, `Flip a coin on this one`, `Slim chance — your call`]);
+  if (score >= 40) return pick([`Probably skip the ${session}`, `Rest the stand`, `Not worth the sit`, `Save it for a better day`, `Low odds — skip it`]);
+  return pick([`Stay home — skip the ${session}`, `Rest the stand today`, `Nothing doing — stay home`, `Dead day — don't burn it`, `Skip it — conditions are bad`]);
 }
 
 function getForecastConfidence(dayIdx) {
   if (dayIdx <= 1) return { hedge: '', closing: '' };
   if (dayIdx <= 3) return { hedge: 'Looking a couple days out — ', closing: ' Keep an eye on it as it gets closer.' };
   if (dayIdx <= 5) return { hedge: 'Four to five days out, so take this with some salt — ', closing: ' Check back in a day or two when the forecast firms up.' };
-  return { hedge: 'This far out it\'s more a heads-up than a verdict — ', closing: ' Way too early to set your alarm, but circle it.' };
+  return { hedge: 'This far out it\'s more a heads-up than a verdict — ', closing: ' Too early to set your alarm, but go ahead and circle it.' };
 }
 
 function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx, sunriseHour, sunsetHour) {
@@ -1781,6 +1789,7 @@ function renderDay(dayIdx) {
           <option>Bryan Saddle</option>
           <option>Mason Pop-up</option>
         </select>
+        <input type="date" id="log-date" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
         <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
           In:
           <input type="time" id="log-time-in" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;width:100px">
@@ -1808,7 +1817,7 @@ function renderDay(dayIdx) {
         <button id="log-submit-btn" onclick="logHunt()" style="flex:0 0 auto;background:var(--green-dim);color:var(--text-bright);border:1px solid var(--green-dim);font-family:monospace;font-size:0.78rem;padding:6px 14px;border-radius:4px;cursor:pointer">Log Hunt</button>
       </div>
       <div style="font-family:monospace;font-size:0.68rem;color:var(--text-dim);padding:4px 0 6px">
-        Conditions snapshot automatically on submit
+        Past date? Conditions pulled from weather archive automatically.
       </div>
       ${huntLog.slice(-5).reverse().map(e => {
         const sightStr = (e.sightings||[]).map(s => `${s.time} ${s.count} ${s.type}`).join(', ');
@@ -1825,6 +1834,12 @@ function renderDay(dayIdx) {
   `;
 
   main.innerHTML = html;
+
+  // Default log date to today
+  const logDateEl = document.getElementById('log-date');
+  if (logDateEl && !logDateEl.value) {
+    logDateEl.value = new Date().toISOString().slice(0, 10);
+  }
 }
 
 
