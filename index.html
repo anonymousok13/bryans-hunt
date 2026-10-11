@@ -495,6 +495,81 @@
     color: var(--text-dim);
     padding: 0 14px 8px;
   }
+
+  /* Live station widget */
+  .live-station {
+    background: rgba(122,182,72,0.06);
+    border: 1px solid rgba(122,182,72,0.28);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-family: monospace;
+    font-size: 0.72rem;
+  }
+  .live-station-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .live-badge {
+    background: var(--green);
+    color: var(--bg);
+    font-size: 0.6rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.06em;
+  }
+  .live-metrics {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: var(--text);
+  }
+  /* WU settings */
+  .wu-settings {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .wu-settings-label {
+    font-size: 0.65rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .wu-key-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+    align-items: center;
+  }
+  .wu-key-row input {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 4px;
+    min-width: 0;
+  }
+  .wu-key-row button {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: monospace;
+    font-size: 0.72rem;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .wu-key-row button:active { opacity: 0.7; }
 </style>
 </head>
 <body>
@@ -525,20 +600,68 @@
 
 <div id="deerid-tab" style="display:none">
   <div class="cal-view" id="deerid-content">
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px">
-      <div style="font-size:0.72rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px">Shoot or Pass? · Osage County Standard</div>
-      <div style="font-size:0.8rem;color:var(--text);margin-bottom:12px;line-height:1.5">Upload a trail cam pic or field photo. Claude will evaluate body maturity, tine mass, and frame — and give you a plain English read.</div>
-      <input type="file" id="deer-photo-input" accept="image/*" style="display:none" onchange="evaluateDeer()">
-      <button onclick="document.getElementById('deer-photo-input').click()" style="background:var(--green-dim);color:var(--text-bright);border:none;font-family:monospace;font-size:0.8rem;padding:10px 20px;border-radius:4px;cursor:pointer;width:100%">📷 Upload Photo</button>
-    </div>
-    <div id="deer-result"></div>
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px">
-      <div style="font-size:0.65rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px">Your Standard</div>
-      <div style="font-size:0.75rem;color:var(--text);line-height:1.6">
-        Shooter: Mature body with thick neck, swayed back, big belly. Heavy bases and fat tines — mass over spread. 3.5+ years minimum.<br><br>
-        Pass: Slim neck, long legs relative to body depth, pencil tines. Doesn't matter how wide if he's still a 2.5.
+
+    <!-- Add Buck Form -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px" id="buck-add-panel">
+      <div style="font-size:0.72rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:10px">Buck Inventory · Osage County Lease</div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input id="buck-name" type="text" placeholder="Nickname (e.g. Kicker, Split Brow)" maxlength="40"
+          style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;width:100%">
+
+        <div style="display:flex;gap:8px">
+          <input id="buck-points" type="number" placeholder="Points" min="1" max="30"
+            style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;flex:1;min-width:0">
+          <input id="buck-date" type="date"
+            style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;flex:2;min-width:0">
+        </div>
+
+        <input id="buck-stand" type="text" placeholder="Where seen (stand, field, etc.)" maxlength="60"
+          style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;width:100%">
+
+        <textarea id="buck-notes" placeholder="Notes — body maturity, rack description, behavior, time of day" rows="2" maxlength="300"
+          style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.78rem;padding:8px 10px;border-radius:4px;width:100%;resize:none;line-height:1.5"></textarea>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:0.72rem;font-family:monospace;color:var(--text-dim)">Verdict:</span>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:monospace;font-size:0.78rem;color:var(--green)">
+            <input type="radio" name="buck-verdict" value="shooter" checked style="accent-color:var(--green)"> Shooter
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:monospace;font-size:0.78rem;color:var(--amber)">
+            <input type="radio" name="buck-verdict" value="watch" style="accent-color:var(--amber)"> Watch
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:monospace;font-size:0.78rem;color:var(--red)">
+            <input type="radio" name="buck-verdict" value="pass" style="accent-color:var(--red)"> Pass
+          </label>
+        </div>
+
+        <div>
+          <input type="file" id="buck-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this)">
+          <button id="buck-photo-label" onclick="document.getElementById('buck-photo-input').click()"
+            style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.75rem;padding:8px 12px;border-radius:4px;cursor:pointer;width:100%;text-align:left">📷 Add Photo (optional)</button>
+        </div>
+
+        <button id="buck-add-btn" onclick="addBuck()" style="background:var(--green-dim);color:var(--text-bright);border:none;font-family:monospace;font-size:0.8rem;padding:10px;border-radius:4px;cursor:pointer;width:100%">+ Add to Inventory</button>
       </div>
     </div>
+
+    <!-- Buck List -->
+    <div id="buck-list"></div>
+
+    <!-- Empty state (shown when no bucks) -->
+    <div id="buck-empty" style="display:none;text-align:center;padding:32px 16px;color:var(--text-dim);font-family:monospace;font-size:0.78rem;line-height:1.8">
+      No bucks logged yet.<br>Add one above — keep all the hunters on the same page.
+    </div>
+
+    <!-- Standard reminder -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px">
+      <div style="font-size:0.65rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:6px">Osage County Standard</div>
+      <div style="font-size:0.75rem;color:var(--text);line-height:1.6">
+        Shooter: Mature body — thick neck, swayed back, heavy belly. Fat tines and heavy bases. Mass over spread. 3.5+ years minimum.<br><br>
+        Pass: Slim neck, long legs, pencil tines. Wide doesn't matter if he's still a 2.5. Let him walk.
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -546,6 +669,11 @@
 const LAT = 36.678800;
 const LON = -96.078444;
 const STAND_LABEL = "Bryan's Lease — Osage County";
+const WU_STATION = 'KOKBARNS6'; // Barnsdall, OK — closest rural PWS
+
+let wuApiKey = '';
+let wuCurrentData = null;
+try { wuApiKey = localStorage.getItem('wuApiKey') || ''; } catch(e) {}
 
 // Tab switching
 function switchTab(tab) {
@@ -560,85 +688,201 @@ function switchTab(tab) {
     );
   });
   if (tab === 'calendar') renderCalendar();
+  if (tab === 'deerid') loadBucks();
 }
 
-// Deer ID evaluation
-async function evaluateDeer() {
-  const input = document.getElementById('deer-photo-input');
-  const result = document.getElementById('deer-result');
-  if (!input.files || !input.files[0]) return;
+// Buck Inventory — JSONBin + Cloudinary backend
+const JSONBIN_BIN_ID   = '6acbd253ac6210605a287c41';
+const JSONBIN_KEY      = '$2a$10$oODU9FNyHqmkeezxrIINLejiLXqr85BU4W4zsQyQui8WS856h8w/m';
+const CLOUDINARY_CLOUD = 'rogbsvjz';
+const CLOUDINARY_PRESET = 'bryans_hunt'; // unsigned upload preset — create this in Cloudinary settings
 
-  const file = input.files[0];
-  result.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px;text-align:center;font-family:monospace;font-size:0.8rem;color:var(--text-dim)">Evaluating...</div>`;
+let buckInventory = [];
+let buckSyncing = false;
 
+async function loadBucks() {
   try {
-    // Convert image to base64
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Access-Key': JSONBIN_KEY }
     });
-
-    const mediaType = file.type || 'image/jpeg';
-
-    const prompt = 'You are a whitetail deer hunting advisor for a private lease in Osage County, NE Oklahoma. Evaluate this deer photo and give a shoot/pass recommendation. ' +
-      'THEIR STANDARD: Mature body with thick neck, swayed back, heavy belly. Heavy bases and fat tines - mass matters more than spread or point count. 3.5+ years minimum. Wide deer with pencil tines is a pass. Compact deer with heavy mass is a shooter. ' +
-      'Signs of maturity: thick neck blending into shoulders, belly sag, swayed back, short legs relative to deep body, Roman nose, dark tarsal glands. ' +
-      'Signs of youth: slim neck, long legs relative to body depth, flat back, pencil-thin tines, tight belly. ' +
-      'A big mature doe is also a legitimate harvest target. ' +
-      'If image quality is too poor to call it, say so plainly. ' +
-      'Respond in 3-4 sentences max. Start with SHOOTER, PASS, BIG DOE - SHOOTER, or NEED BETTER LOOK. Then explain why in plain buddy language like texting a hunting partner.';
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 400,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mediaType, data: base64 }
-            },
-            {
-              type: 'text',
-              text: prompt
-            }
-          ]
-        }]
-      })
-    });
-
-    const data = await response.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || 'Could not evaluate - try again.';
-
-    // Color code based on verdict
-    const isShooter = text.startsWith('SHOOTER') || text.startsWith('BIG DOE');
-    const isPass = text.startsWith('PASS');
-    const borderColor = isShooter ? 'var(--green)' : isPass ? 'var(--red)' : 'var(--amber)';
-    const bgColor = isShooter ? 'rgba(122,182,72,0.08)' : isPass ? 'rgba(200,74,42,0.08)' : 'rgba(200,146,42,0.08)';
-
-    // Show photo preview + result
-    const objectUrl = URL.createObjectURL(file);
-    result.innerHTML = `
-      <div style="background:var(--bg2);border:1px solid ${borderColor};border-radius:6px;overflow:hidden;margin-bottom:8px">
-        <img src="${objectUrl}" style="width:100%;max-height:280px;object-fit:cover;display:block">
-        <div style="padding:14px;background:${bgColor};font-size:0.85rem;line-height:1.6;color:var(--text-bright)">${text}</div>
-      </div>
-      <button onclick="clearDeerResult()" style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.72rem;padding:6px 14px;border-radius:4px;cursor:pointer">Try another photo</button>
-    `;
+    if (!resp.ok) throw new Error('fetch failed');
+    const data = await resp.json();
+    buckInventory = data.record.bucks || [];
   } catch(e) {
-    result.innerHTML = `<div style="background:rgba(200,74,42,0.1);border:1px solid rgba(200,74,42,0.3);border-radius:6px;padding:12px;font-family:monospace;font-size:0.78rem;color:var(--red)">Evaluation failed — check your connection and try again.<br><small>${e.message}</small></div>`;
+    // Fall back to localStorage if offline
+    try { buckInventory = JSON.parse(localStorage.getItem('buckInventory') || '[]'); } catch(e2) { buckInventory = []; }
+  }
+  renderBucks();
+}
+
+async function saveBucks() {
+  try { localStorage.setItem('buckInventory', JSON.stringify(buckInventory)); } catch(e) {}
+  try {
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
+      body: JSON.stringify({ bucks: buckInventory })
+    });
+  } catch(e) { /* offline — localStorage already saved */ }
+}
+
+async function uploadPhoto(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', CLOUDINARY_PRESET);
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST', body: fd
+  });
+  if (!resp.ok) throw new Error('Upload failed');
+  const data = await resp.json();
+  return data.secure_url;
+}
+
+async function addBuck() {
+  const name = document.getElementById('buck-name').value.trim();
+  const points = document.getElementById('buck-points').value.trim();
+  const date = document.getElementById('buck-date').value;
+  const stand = document.getElementById('buck-stand').value.trim();
+  const notes = document.getElementById('buck-notes').value.trim();
+  const verdict = document.querySelector('input[name="buck-verdict"]:checked')?.value || 'watch';
+  const photoInput = document.getElementById('buck-photo-input');
+  const addBtn = document.getElementById('buck-add-btn');
+
+  if (!name) { document.getElementById('buck-name').focus(); return; }
+
+  if (addBtn) { addBtn.textContent = 'Saving...'; addBtn.disabled = true; }
+
+  let photoUrl = null;
+  if (photoInput && photoInput.files && photoInput.files[0]) {
+    try {
+      photoUrl = await uploadPhoto(photoInput.files[0]);
+    } catch(e) {
+      if (addBtn) { addBtn.textContent = '+ Add to Inventory'; addBtn.disabled = false; }
+      alert('Photo upload failed — check your connection and try again.');
+      return;
+    }
+  }
+
+  const buck = {
+    id: Date.now(),
+    name,
+    points: points ? parseInt(points) : null,
+    date: date || new Date().toISOString().slice(0, 10),
+    stand,
+    notes,
+    verdict,
+    photoUrl,
+    sightings: 1
+  };
+
+  buckInventory.unshift(buck);
+  await saveBucks();
+
+  // Clear form
+  document.getElementById('buck-name').value = '';
+  document.getElementById('buck-points').value = '';
+  document.getElementById('buck-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('buck-stand').value = '';
+  document.getElementById('buck-notes').value = '';
+  if (photoInput) { photoInput.value = ''; }
+  document.getElementById('buck-photo-label').textContent = '📷 Add Photo (optional)';
+  document.querySelector('input[name="buck-verdict"][value="shooter"]').checked = true;
+  if (addBtn) { addBtn.textContent = '+ Add to Inventory'; addBtn.disabled = false; }
+
+  renderBucks();
+}
+
+function deleteBuck(id) {
+  if (!confirm('Remove this buck from the inventory?')) return;
+  buckInventory = buckInventory.filter(b => b.id !== id);
+  saveBucks();
+  renderBucks();
+}
+
+function toggleBuckVerdict(id) {
+  const buck = buckInventory.find(b => b.id === id);
+  if (!buck) return;
+  const cycle = { shooter: 'watch', watch: 'pass', pass: 'shooter' };
+  buck.verdict = cycle[buck.verdict] || 'watch';
+  saveBucks();
+  renderBucks();
+}
+
+function bumpSighting(id) {
+  const buck = buckInventory.find(b => b.id === id);
+  if (!buck) return;
+  buck.sightings = (buck.sightings || 1) + 1;
+  buck.lastSeen = new Date().toISOString().slice(0, 10);
+  saveBucks();
+  renderBucks();
+}
+
+function handlePhotoSelect(input) {
+  const label = document.getElementById('buck-photo-label');
+  if (label && input.files && input.files[0]) {
+    label.textContent = '📷 ' + input.files[0].name;
   }
 }
 
-function clearDeerResult() {
-  document.getElementById('deer-result').innerHTML = '';
-  document.getElementById('deer-photo-input').value = '';
+function renderBucks() {
+  const list = document.getElementById('buck-list');
+  const empty = document.getElementById('buck-empty');
+  if (!list) return;
+
+  // Pre-fill date input with today if empty
+  const dateInput = document.getElementById('buck-date');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+
+  if (!buckInventory.length) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  const verdictStyle = {
+    shooter: { border: 'var(--green)', bg: 'rgba(122,182,72,0.07)', badge: '#7ab648', label: 'SHOOTER' },
+    watch:   { border: 'var(--amber)', bg: 'rgba(200,146,42,0.07)', badge: '#c8922a', label: 'WATCH'   },
+    pass:    { border: 'var(--red)',   bg: 'rgba(200,74,42,0.07)',  badge: '#c84a2a', label: 'PASS'     }
+  };
+
+  list.innerHTML = buckInventory.map(buck => {
+    const vs = verdictStyle[buck.verdict] || verdictStyle.watch;
+    const dateStr = buck.date ? buck.date.replace(/-/g, '/').slice(5) : '';
+    const lastStr = buck.lastSeen ? ` · last ${buck.lastSeen.replace(/-/g, '/').slice(5)}` : '';
+    const ptsStr = buck.points ? `${buck.points}-pt · ` : '';
+    const sightStr = buck.sightings > 1 ? ` · ${buck.sightings} sightings` : '';
+
+    return `
+      <div style="background:var(--bg2);border:1px solid ${vs.border};border-radius:6px;overflow:hidden;margin-bottom:8px">
+        ${buck.photoUrl ? `<img src="${buck.photoUrl}" style="width:100%;max-height:220px;object-fit:cover;display:block">` : ''}
+        <div style="padding:12px 14px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+            <div>
+              <span style="font-size:0.95rem;color:var(--text-bright);font-family:Georgia,serif">${buck.name}</span>
+              ${buck.points ? `<span style="font-size:0.72rem;color:var(--text-dim);font-family:monospace;margin-left:8px">${buck.points}-pt</span>` : ''}
+            </div>
+            <button onclick="toggleBuckVerdict(${buck.id})" style="background:${vs.badge};color:#000;border:none;font-family:monospace;font-size:0.6rem;font-weight:bold;padding:3px 8px;border-radius:3px;cursor:pointer;letter-spacing:0.06em;white-space:nowrap;flex-shrink:0">${vs.label}</button>
+          </div>
+
+          <div style="font-size:0.7rem;color:var(--text-dim);font-family:monospace;margin-bottom:${buck.notes ? '6px' : '0'}">
+            ${dateStr}${lastStr}${sightStr}${buck.stand ? ` · ${buck.stand}` : ''}
+          </div>
+
+          ${buck.notes ? `<div style="font-size:0.78rem;color:var(--text);line-height:1.5;margin-bottom:8px">${buck.notes}</div>` : ''}
+
+          <div style="display:flex;gap:8px;margin-top:${buck.notes ? '0' : '8px'}">
+            <button onclick="bumpSighting(${buck.id})" style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.68rem;padding:4px 10px;border-radius:4px;cursor:pointer">+ Seen again</button>
+            <button onclick="deleteBuck(${buck.id})" style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.68rem;padding:4px 10px;border-radius:4px;cursor:pointer">Remove</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
+
 
 // Season calendar events
 const SEASON_EVENTS = [
@@ -1177,6 +1421,34 @@ async function fetchForecast() {
   return resp.json();
 }
 
+// Weather Underground PWS — live current conditions from KOKBARNS6 (Barnsdall)
+async function fetchWUCurrent() {
+  if (!wuApiKey) return null;
+  try {
+    const url = `https://api.weather.com/v2/pws/observations/current?stationId=${WU_STATION}&format=json&units=e&numericPrecision=decimal&apiKey=${wuApiKey}`;
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return (data.observations && data.observations[0]) ? data.observations[0] : null;
+  } catch(e) { return null; }
+}
+
+function saveWuKey() {
+  const input = document.getElementById('wu-key-input');
+  if (!input) return;
+  wuApiKey = input.value.trim();
+  try { localStorage.setItem('wuApiKey', wuApiKey); } catch(e) {}
+  if (wuApiKey) {
+    fetchWUCurrent().then(obs => {
+      wuCurrentData = obs;
+      renderDay(selectedDay);
+    });
+  } else {
+    wuCurrentData = null;
+    renderDay(selectedDay);
+  }
+}
+
 function getHourlySlice(data, dayIdx, startHour, endHour) {
   const base = dayIdx * 24;
   const temps = [], winds = [], windDegs = [], humids = [], precips = [], pressures = [];
@@ -1284,6 +1556,33 @@ function renderDay(dayIdx) {
   // Prime all-day banner
   if (amResult.score >= 80 && pmResult.score >= 80) {
     html += `<div class="pressure-alert" style="border-color:gold;background:rgba(255,215,0,0.08);color:gold">★ PRIME ALL-DAY SIT — Both morning and afternoon are money. Pack a sandwich, extra water, and don't come down until dark.</div>`;
+  }
+
+  // Live station widget — Today only, when WU key is configured and data is fresh
+  if (dayIdx === 0 && wuCurrentData) {
+    const obs = wuCurrentData;
+    const imp = obs.imperial || {};
+    const obsTime = obs.obsTimeLocal ? new Date(obs.obsTimeLocal) : new Date();
+    const timeStr = obsTime.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
+    const wuDir = windDirName(obs.winddir || 0);
+    const gustStr = imp.windGust && imp.windGust > (imp.windSpeed || 0) + 2 ? ` (gust ${Math.round(imp.windGust)})` : '';
+    const precipStr = (imp.precipTotal || 0) > 0 ? `<span>${imp.precipTotal}" today</span>` : '';
+    html += `
+      <div class="live-station">
+        <div class="live-station-header">
+          <span style="color:var(--green-dim)">⬤ KOKBARNS6 · Barnsdall · ${timeStr}</span>
+          <span class="live-badge">LIVE</span>
+        </div>
+        <div class="live-metrics">
+          <span>${Math.round(imp.temp || 0)}°F</span>
+          <span>${Math.round(imp.windSpeed || 0)} mph ${wuDir}${gustStr}</span>
+          <span>${Math.round(imp.humidity || obs.humidity || 0)}% RH</span>
+          <span>${((imp.pressure || 0)).toFixed(2)}" Hg</span>
+          ${precipStr}
+        </div>
+        <div style="color:var(--text-dim);margin-top:5px;font-size:0.65rem">Live ground truth · Forecast cards below use Open-Meteo model data</div>
+      </div>
+    `;
   }
 
   // Rut phase banner
@@ -1428,6 +1727,15 @@ function renderDay(dayIdx) {
           <span>${e.date}</span> · ${e.stand} · ${e.session}${e.harvest ? ' · 🦌 ' + e.harvest + ' killed' : ''}${e.note ? ' · ' + e.note : ''}
         </div>
       `).join('')}
+      <div class="wu-settings">
+        <div class="wu-settings-label">⚙ Live Weather Station</div>
+        <div style="font-size:0.7rem;color:var(--text-dim);font-family:monospace">Weather Underground API key — pulls live readings from KOKBARNS6 (Barnsdall) on the Today tab. Free at <a href="https://www.wunderground.com/member/api-keys" target="_blank" style="color:var(--green-dim)">wunderground.com</a>.</div>
+        <div class="wu-key-row">
+          <input id="wu-key-input" type="password" placeholder="Paste WU API key here" value="${wuApiKey}">
+          <button onclick="saveWuKey()">Save</button>
+          ${wuCurrentData ? '<span style="color:var(--green);font-family:monospace;font-size:0.72rem">✓ Live</span>' : (wuApiKey ? '<span style="color:var(--amber);font-family:monospace;font-size:0.72rem">⚠ No data</span>' : '')}
+        </div>
+      </div>
     </div>
   `;
 
@@ -1554,13 +1862,26 @@ function selectDay(i) {
 
 async function init() {
   try {
-    forecastData = await fetchForecast();
+    [forecastData, wuCurrentData] = await Promise.all([
+      fetchForecast(),
+      fetchWUCurrent()
+    ]);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('coords-label').textContent = `${STAND_LABEL} · Tomorrow: ${tomorrow.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
     renderWeekStrip(forecastData);
     renderDay(selectedDay); // defaults to tomorrow (index 1)
     initSwipe();
+    // Refresh live WU station data every 15 minutes
+    if (wuApiKey) {
+      setInterval(async () => {
+        const fresh = await fetchWUCurrent();
+        if (fresh) {
+          wuCurrentData = fresh;
+          if (selectedDay === 0) renderDay(0);
+        }
+      }, 15 * 60 * 1000);
+    }
   } catch(e) {
     document.getElementById('main-content').innerHTML = `<div class="error-msg">Failed to load weather data. Check your connection and reload.<br><small>${e.message}</small></div>`;
     document.getElementById('week-strip').innerHTML = '';
