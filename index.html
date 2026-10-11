@@ -671,9 +671,8 @@ const LON = -96.078444;
 const STAND_LABEL = "Bryan's Lease — Osage County";
 const WU_STATION = 'KOKBARNS6'; // Barnsdall, OK — closest rural PWS
 
-let wuApiKey = '';
+const wuApiKey = 'f044d88f729a4ef784d88f729a0ef7fb';
 let wuCurrentData = null;
-try { wuApiKey = localStorage.getItem('wuApiKey') || ''; } catch(e) {}
 
 // Tab switching
 function switchTab(tab) {
@@ -1433,21 +1432,6 @@ async function fetchWUCurrent() {
   } catch(e) { return null; }
 }
 
-function saveWuKey() {
-  const input = document.getElementById('wu-key-input');
-  if (!input) return;
-  wuApiKey = input.value.trim();
-  try { localStorage.setItem('wuApiKey', wuApiKey); } catch(e) {}
-  if (wuApiKey) {
-    fetchWUCurrent().then(obs => {
-      wuCurrentData = obs;
-      renderDay(selectedDay);
-    });
-  } else {
-    wuCurrentData = null;
-    renderDay(selectedDay);
-  }
-}
 
 function getHourlySlice(data, dayIdx, startHour, endHour) {
   const base = dayIdx * 24;
@@ -1727,15 +1711,6 @@ function renderDay(dayIdx) {
           <span>${e.date}</span> · ${e.stand} · ${e.session}${e.harvest ? ' · 🦌 ' + e.harvest + ' killed' : ''}${e.note ? ' · ' + e.note : ''}
         </div>
       `).join('')}
-      <div class="wu-settings">
-        <div class="wu-settings-label">⚙ Live Weather Station</div>
-        <div style="font-size:0.7rem;color:var(--text-dim);font-family:monospace">Weather Underground API key — pulls live readings from KOKBARNS6 (Barnsdall) on the Today tab. Free at <a href="https://www.wunderground.com/member/api-keys" target="_blank" style="color:var(--green-dim)">wunderground.com</a>.</div>
-        <div class="wu-key-row">
-          <input id="wu-key-input" type="password" placeholder="Paste WU API key here" value="${wuApiKey}">
-          <button onclick="saveWuKey()">Save</button>
-          ${wuCurrentData ? '<span style="color:var(--green);font-family:monospace;font-size:0.72rem">✓ Live</span>' : (wuApiKey ? '<span style="color:var(--amber);font-family:monospace;font-size:0.72rem">⚠ No data</span>' : '')}
-        </div>
-      </div>
     </div>
   `;
 
@@ -1873,15 +1848,13 @@ async function init() {
     renderDay(selectedDay); // defaults to tomorrow (index 1)
     initSwipe();
     // Refresh live WU station data every 15 minutes
-    if (wuApiKey) {
-      setInterval(async () => {
+    setInterval(async () => {
         const fresh = await fetchWUCurrent();
         if (fresh) {
           wuCurrentData = fresh;
           if (selectedDay === 0) renderDay(0);
         }
       }, 15 * 60 * 1000);
-    }
   } catch(e) {
     document.getElementById('main-content').innerHTML = `<div class="error-msg">Failed to load weather data. Check your connection and reload.<br><small>${e.message}</small></div>`;
     document.getElementById('week-strip').innerHTML = '';
