@@ -1248,8 +1248,9 @@ function historicalNudge(stand, windDeg, isAM) {
   if (relevant.length < 2) return 0; // not enough data yet
   // Score each entry: bucks seen weighted most
   const avg = relevant.reduce((sum, e) => {
-    const b = Math.min(e.bucksSeen || 0, 3);
-    const d = Math.min(e.doesSeen || 0, 3);
+    const sightings = e.sightings || [];
+    const b = Math.min(sightings.filter(s => s.type === 'buck').reduce((a,s) => a + s.count, 0), 4);
+    const d = Math.min(sightings.filter(s => s.type === 'doe').reduce((a,s) => a + s.count, 0), 4);
     const h = e.harvest ? 2 : 0;
     return sum + b * 3 + d * 1 + h;
   }, 0) / relevant.length;
@@ -1745,8 +1746,9 @@ function renderDay(dayIdx) {
       const pmNudge = historicalNudge(s, windDegNow, false);
       const relevant = huntLog.filter(e => e.stand === s && e.windDeg != null && (() => { let d = Math.abs((e.windDeg - windDegNow + 360) % 360); if (d > 180) d = 360-d; return d <= 45; })());
       if (!relevant.length) return null;
-      const totalBucks = relevant.reduce((s,e) => s + (e.bucksSeen||0), 0);
-      return { s, sits: relevant.length, totalBucks, amNudge, pmNudge };
+      const totalBucks = relevant.reduce((acc,e) => acc + (e.sightings||[]).filter(s=>s.type==='buck').reduce((a,s)=>a+s.count,0), 0);
+      const totalDoes = relevant.reduce((acc,e) => acc + (e.sightings||[]).filter(s=>s.type==='doe').reduce((a,s)=>a+s.count,0), 0);
+      return { s, sits: relevant.length, totalBucks, totalDoes, amNudge, pmNudge };
     }).filter(Boolean);
 
     if (intelRows.length) {
@@ -1760,7 +1762,7 @@ function renderDay(dayIdx) {
           return `<div style="font-family:monospace;font-size:0.75rem;color:var(--text);display:flex;gap:8px;padding:2px 0">
             <span style="color:${col};min-width:14px">${arrow}</span>
             <span style="flex:1">${r.s}</span>
-            <span style="color:var(--text-dim)">${r.sits} sit${r.sits!==1?'s':''} · ${r.totalBucks} buck${r.totalBucks!==1?'s':''} seen</span>
+            <span style="color:var(--text-dim)">${r.sits} sit${r.sits!==1?'s':''} · ${r.totalBucks}B ${r.totalDoes}D seen</span>
           </div>`;
         }).join('')}
       </div>`;
@@ -1779,31 +1781,21 @@ function renderDay(dayIdx) {
           <option>Bryan Saddle</option>
           <option>Mason Pop-up</option>
         </select>
-        <select id="log-session" style="flex:0 0 auto">
-          <option>Morning</option>
-          <option>Evening</option>
-          <option>All Day</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
+          In:
+          <input type="time" id="log-time-in" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;width:100px">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
+          Out:
+          <input type="time" id="log-time-out" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;width:100px">
+        </div>
       </div>
-      <div class="log-form" style="flex-wrap:wrap;gap:8px;margin-top:6px">
-        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
-          Bucks seen:
-          <select id="log-bucks-seen" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3+</option>
-          </select>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
-          Does seen:
-          <select id="log-does-seen" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3+</option>
-          </select>
-        </div>
+
+      <div style="font-family:monospace;font-size:0.72rem;color:var(--green);margin:10px 0 4px">SIGHTINGS</div>
+      <div id="log-sightings-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+      <button onclick="addSightingRow()" style="background:transparent;border:1px dashed var(--border);color:var(--text-dim);font-family:monospace;font-size:0.75rem;padding:5px 12px;border-radius:4px;cursor:pointer;margin-bottom:8px">+ Add sighting</button>
+
+      <div class="log-form" style="gap:8px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
           Harvest:
           <select id="log-harvest-sel" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
@@ -1812,22 +1804,21 @@ function renderDay(dayIdx) {
             <option value="doe">Doe</option>
           </select>
         </div>
-      </div>
-      <div class="log-form" style="gap:8px;margin-top:6px">
         <input id="log-note" placeholder="Notes (optional)" style="flex:1;min-width:100px">
         <button id="log-submit-btn" onclick="logHunt()" style="flex:0 0 auto;background:var(--green-dim);color:var(--text-bright);border:1px solid var(--green-dim);font-family:monospace;font-size:0.78rem;padding:6px 14px;border-radius:4px;cursor:pointer">Log Hunt</button>
       </div>
       <div style="font-family:monospace;font-size:0.68rem;color:var(--text-dim);padding:4px 0 6px">
-        Time &amp; conditions snapshot automatically on submit
+        Conditions snapshot automatically on submit
       </div>
       ${huntLog.slice(-5).reverse().map(e => {
-        const bucksStr = e.bucksSeen > 0 ? ` · ${e.bucksSeen} buck${e.bucksSeen > 1 ? 's' : ''}` : '';
-        const doesStr = e.doesSeen > 0 ? ` · ${e.doesSeen} doe${e.doesSeen > 1 ? 's' : ''}` : '';
-        const harvestStr = e.harvest && e.harvest !== 'none' ? ` · 🦌 ${e.harvest} killed` : '';
-        const windStr = e.windDir && e.windSpeed ? ` · ${e.windDir} ${e.windSpeed}mph` : '';
-        const tempStr = e.tempF ? ` · ${Math.round(e.tempF)}°` : '';
+        const sightStr = (e.sightings||[]).map(s => `${s.time} ${s.count} ${s.type}`).join(', ');
+        const harvestStr = e.harvest && e.harvest !== 'none' ? ' 🦌 ' + e.harvest + ' killed' : '';
+        const windStr = e.windDir && e.windSpeed ? ` ${e.windDir} ${e.windSpeed}mph` : '';
+        const tempStr = e.tempF ? ` ${Math.round(e.tempF)}°` : '';
         return `<div class="log-entry">
-          <span style="color:var(--text-dim);font-size:0.72rem">${e.dateStr || e.date}</span> ${e.time ? '· ' + e.time + ' ' : ''}· ${e.stand} · ${e.session}${bucksStr}${doesStr}${harvestStr}${windStr}${tempStr}${e.note ? ' · ' + e.note : ''}
+          <div style="color:var(--text-dim);font-size:0.72rem">${e.dateStr || e.date} · ${e.stand}${e.timeIn ? ' · in ' + e.timeIn : ''}${e.timeOut ? ' out ' + e.timeOut : ''}${windStr}${tempStr}${harvestStr}</div>
+          ${sightStr ? `<div style="font-size:0.75rem;color:var(--text);margin-top:2px">${sightStr}</div>` : '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">No deer seen</div>'}
+          ${e.note ? `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">${e.note}</div>` : ''}
         </div>`;
       }).join('')}
     </div>
@@ -1837,21 +1828,82 @@ function renderDay(dayIdx) {
 }
 
 
+let sightingRows = [];
+
+function addSightingRow() {
+  const id = Date.now();
+  sightingRows.push(id);
+  const list = document.getElementById('log-sightings-list');
+  if (!list) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const row = document.createElement('div');
+  row.id = 'sighting-' + id;
+  row.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap';
+  row.innerHTML = `
+    <input type="time" value="${hh}:${mm}" data-field="time" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;width:100px">
+    <select data-field="type" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
+      <option value="buck">Buck</option>
+      <option value="doe">Doe</option>
+    </select>
+    <select data-field="count" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4+</option>
+    </select>
+    <button onclick="removeSightingRow(${id})" style="background:transparent;border:none;color:var(--text-dim);font-size:1rem;cursor:pointer;padding:0 4px">✕</button>
+  `;
+  list.appendChild(row);
+}
+
+function removeSightingRow(id) {
+  sightingRows = sightingRows.filter(r => r !== id);
+  const el = document.getElementById('sighting-' + id);
+  if (el) el.remove();
+}
+
+function collectSightings() {
+  return sightingRows.map(id => {
+    const row = document.getElementById('sighting-' + id);
+    if (!row) return null;
+    const time = row.querySelector('[data-field="time"]')?.value || '';
+    const type = row.querySelector('[data-field="type"]')?.value || 'buck';
+    const count = parseInt(row.querySelector('[data-field="count"]')?.value || '1');
+    // Convert 24h time to 12h display
+    const [h, m] = time.split(':').map(Number);
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 || 12;
+    const timeDisplay = `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+    return { time: timeDisplay, time24: time, type, count };
+  }).filter(Boolean);
+}
+
 async function logHunt() {
   const stand = document.getElementById('log-stand').value;
-  const session = document.getElementById('log-session').value;
   const note = document.getElementById('log-note').value;
-  const bucksSeen = parseInt(document.getElementById('log-bucks-seen')?.value || '0');
-  const doesSeen = parseInt(document.getElementById('log-does-seen')?.value || '0');
+  const timeIn = document.getElementById('log-time-in')?.value || '';
+  const timeOut = document.getElementById('log-time-out')?.value || '';
   const harvest = document.getElementById('log-harvest-sel')?.value || 'none';
+  const sightings = collectSightings();
 
   const btn = document.getElementById('log-submit-btn');
   if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
 
-  // Auto-snapshot time
+  // Auto-snapshot submit time and derive session from time-in or now
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-  const timeStr = now.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+  const refHour = timeIn ? parseInt(timeIn.split(':')[0]) : now.getHours();
+  const session = refHour < 12 ? 'Morning' : 'Evening';
+
+  // Format in/out for display
+  const fmtTime = t => {
+    if (!t) return '';
+    const [h, m] = t.split(':').map(Number);
+    const ap = h < 12 ? 'AM' : 'PM';
+    return `${h%12||12}:${String(m).padStart(2,'0')} ${ap}`;
+  };
 
   // Auto-snapshot conditions from live WU data
   let condSnapshot = {};
@@ -1868,9 +1920,11 @@ async function logHunt() {
 
   const entry = {
     ts: Date.now(),
-    dateStr, timeStr,
+    dateStr,
     stand, session,
-    bucksSeen, doesSeen,
+    timeIn: fmtTime(timeIn),
+    timeOut: fmtTime(timeOut),
+    sightings,
     harvest: harvest !== 'none' ? harvest : null,
     note,
     ...condSnapshot
@@ -1881,10 +1935,13 @@ async function logHunt() {
   await saveLog();
 
   // Reset form
-  document.getElementById('log-bucks-seen').value = '0';
-  document.getElementById('log-does-seen').value = '0';
+  document.getElementById('log-time-in').value = '';
+  document.getElementById('log-time-out').value = '';
   document.getElementById('log-harvest-sel').value = 'none';
   document.getElementById('log-note').value = '';
+  sightingRows = [];
+  const list = document.getElementById('log-sightings-list');
+  if (list) list.innerHTML = '';
   if (btn) { btn.textContent = 'Log Hunt'; btn.disabled = false; }
 
   renderDay(selectedDay);
