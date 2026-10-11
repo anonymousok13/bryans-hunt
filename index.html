@@ -688,6 +688,7 @@ function switchTab(tab) {
   });
   if (tab === 'calendar') renderCalendar();
   if (tab === 'deerid') loadBucks();
+  if (tab === 'forecast') loadHuntLog().then(() => renderDay(selectedDay));
 }
 
 // Buck Inventory — JSONBin + Cloudinary backend
@@ -707,9 +708,11 @@ async function loadBucks() {
     if (!resp.ok) throw new Error('fetch failed');
     const data = await resp.json();
     buckInventory = data.record.bucks || [];
+    if (data.record.huntLog) huntLog = data.record.huntLog;
   } catch(e) {
     // Fall back to localStorage if offline
     try { buckInventory = JSON.parse(localStorage.getItem('buckInventory') || '[]'); } catch(e2) { buckInventory = []; }
+    try { huntLog = JSON.parse(localStorage.getItem('huntLog') || '[]'); } catch(e2) { huntLog = []; }
   }
   renderBucks();
 }
@@ -717,10 +720,14 @@ async function loadBucks() {
 async function saveBucks() {
   try { localStorage.setItem('buckInventory', JSON.stringify(buckInventory)); } catch(e) {}
   try {
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Access-Key': JSONBIN_KEY }
+    });
+    const existing = resp.ok ? (await resp.json()).record : {};
     await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
-      body: JSON.stringify({ bucks: buckInventory })
+      body: JSON.stringify({ ...existing, bucks: buckInventory })
     });
   } catch(e) { /* offline — localStorage already saved */ }
 }
@@ -1223,6 +1230,34 @@ function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
   return { score: Math.min(100, Math.round(raw)), disqualified: null, pTrend, majors, minors };
 }
 
+// Historical nudge: look at past logs for same stand + similar wind dir, return ±0-10
+function historicalNudge(stand, windDeg, isAM) {
+  if (!huntLog.length) return 0;
+  const session = isAM ? 'Morning' : 'Evening';
+  const relevant = huntLog.filter(e => {
+    if (e.stand !== stand) return false;
+    // Match AM/PM loosely — Morning or All Day for AM, Evening or All Day for PM
+    const sessionMatch = e.session === 'All Day' || e.session === session;
+    if (!sessionMatch) return false;
+    // Wind direction within 45 degrees
+    if (e.windDeg == null) return false;
+    let diff = Math.abs((e.windDeg - windDeg + 360) % 360);
+    if (diff > 180) diff = 360 - diff;
+    return diff <= 45;
+  });
+  if (relevant.length < 2) return 0; // not enough data yet
+  // Score each entry: bucks seen weighted most
+  const avg = relevant.reduce((sum, e) => {
+    const b = Math.min(e.bucksSeen || 0, 3);
+    const d = Math.min(e.doesSeen || 0, 3);
+    const h = e.harvest ? 2 : 0;
+    return sum + b * 3 + d * 1 + h;
+  }, 0) / relevant.length;
+  // avg of 0 → -8, avg of 3 → 0, avg of 6+ → +10
+  const nudge = Math.round((avg - 3) * (10 / 6));
+  return Math.max(-8, Math.min(10, nudge));
+}
+
 function scoreClass(score) {
   if (score >= 72) return 'hunt';
   if (score >= 48) return 'marginal';
@@ -1395,14 +1430,43 @@ const msToMph = ms => ms * 2.23694;
 let forecastData = null;
 let selectedDay = 1; // Default to tomorrow — night-before planning mode
 let huntLog = [];
+let huntLogSyncing = false;
 
 try {
   const stored = localStorage.getItem('huntLog');
   if (stored) huntLog = JSON.parse(stored);
 } catch(e) {}
 
-function saveLog() {
+async function loadHuntLog() {
+  try {
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Access-Key': JSONBIN_KEY }
+    });
+    if (!resp.ok) throw new Error('fetch failed');
+    const data = await resp.json();
+    if (data.record.huntLog) huntLog = data.record.huntLog;
+  } catch(e) {
+    try { huntLog = JSON.parse(localStorage.getItem('huntLog') || '[]'); } catch(e2) { huntLog = []; }
+  }
+}
+
+async function saveLog() {
   try { localStorage.setItem('huntLog', JSON.stringify(huntLog)); } catch(e) {}
+  if (huntLogSyncing) return;
+  huntLogSyncing = true;
+  try {
+    // Fetch current bin, merge huntLog in, save back
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Access-Key': JSONBIN_KEY }
+    });
+    const existing = resp.ok ? (await resp.json()).record : {};
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
+      body: JSON.stringify({ ...existing, huntLog })
+    });
+  } catch(e) { /* offline — localStorage already saved */ }
+  huntLogSyncing = false;
 }
 
 function daysSinceLastHunt() {
@@ -1672,67 +1736,157 @@ function renderDay(dayIdx) {
     html += `<div class="pressure-alert" style="border-color:rgba(200,146,42,0.5);background:rgba(200,146,42,0.08);color:var(--amber)">📅 ${calAlert.icon} <strong>${calAlert.title}</strong> in ${calAlert.daysOut} day${calAlert.daysOut !== 1 ? 's' : ''} (${calAlert.dateStr}) — check the Season Calendar tab for what to do.</div>`;
   }
 
+  // Stand intel from hunt log history
+  if (huntLog.length >= 3) {
+    const stands = ['S Ladder','N Ladder','Box Blind','Bryan Saddle','Mason Pop-up'];
+    const windDegNow = amWeather.windDeg;
+    const intelRows = stands.map(s => {
+      const amNudge = historicalNudge(s, windDegNow, true);
+      const pmNudge = historicalNudge(s, windDegNow, false);
+      const relevant = huntLog.filter(e => e.stand === s && e.windDeg != null && (() => { let d = Math.abs((e.windDeg - windDegNow + 360) % 360); if (d > 180) d = 360-d; return d <= 45; })());
+      if (!relevant.length) return null;
+      const totalBucks = relevant.reduce((s,e) => s + (e.bucksSeen||0), 0);
+      return { s, sits: relevant.length, totalBucks, amNudge, pmNudge };
+    }).filter(Boolean);
+
+    if (intelRows.length) {
+      const windDirNow = windDirName(windDegNow);
+      html += `<div class="pressure-alert" style="border-color:rgba(122,182,72,0.3);background:rgba(122,182,72,0.05);padding:10px 12px">
+        <div style="font-family:monospace;font-size:0.72rem;color:var(--green);margin-bottom:6px">📊 STAND INTEL · ${windDirNow} wind history</div>
+        ${intelRows.map(r => {
+          const nudge = r.amNudge || r.pmNudge;
+          const arrow = nudge > 3 ? '▲' : nudge < -3 ? '▼' : '—';
+          const col = nudge > 3 ? 'var(--green)' : nudge < -3 ? 'var(--red)' : 'var(--text-dim)';
+          return `<div style="font-family:monospace;font-size:0.75rem;color:var(--text);display:flex;gap:8px;padding:2px 0">
+            <span style="color:${col};min-width:14px">${arrow}</span>
+            <span style="flex:1">${r.s}</span>
+            <span style="color:var(--text-dim)">${r.sits} sit${r.sits!==1?'s':''} · ${r.totalBucks} buck${r.totalBucks!==1?'s':''} seen</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+  }
+
   // Hunt log
   html += `
     <div class="log-section">
       <div class="log-title">Stand Log${daysSince !== null ? ` · Last hunt: ${daysSince === 0 ? 'today' : daysSince + ' day' + (daysSince !== 1 ? 's' : '') + ' ago'}` : ''}</div>
-      <div class="log-form">
-        <select id="log-stand">
+      <div class="log-form" style="flex-wrap:wrap;gap:8px">
+        <select id="log-stand" style="flex:1;min-width:120px">
           <option>S Ladder</option>
           <option>N Ladder</option>
           <option>Box Blind</option>
           <option>Bryan Saddle</option>
           <option>Mason Pop-up</option>
         </select>
-        <select id="log-session">
+        <select id="log-session" style="flex:0 0 auto">
           <option>Morning</option>
           <option>Evening</option>
           <option>All Day</option>
         </select>
-        <input id="log-note" placeholder="Notes (optional)" style="flex:1;min-width:120px">
       </div>
-      <div class="log-form" style="align-items:center;gap:12px;padding:4px 0 8px">
-        <label style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
-          <input type="checkbox" id="log-harvest" onchange="toggleHarvestType()" style="width:16px;height:16px;accent-color:var(--green)">
-          Deer killed
-        </label>
-        <div id="harvest-type-wrap" style="display:none;gap:8px;display:none">
-          <label style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
-            <input type="radio" name="harvest-type" value="buck" checked style="accent-color:var(--amber)"> Buck
-          </label>
-          <label style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
-            <input type="radio" name="harvest-type" value="doe" style="accent-color:var(--green)"> Doe
-          </label>
+      <div class="log-form" style="flex-wrap:wrap;gap:8px;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
+          Bucks seen:
+          <select id="log-bucks-seen" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3+</option>
+          </select>
         </div>
-        <button onclick="logHunt()" style="margin-left:auto;background:var(--green-dim);color:var(--text-bright);border:1px solid var(--green-dim);font-family:monospace;font-size:0.78rem;padding:6px 14px;border-radius:4px;cursor:pointer">Log Hunt</button>
+        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
+          Does seen:
+          <select id="log-does-seen" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3+</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
+          Harvest:
+          <select id="log-harvest-sel" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
+            <option value="none">None</option>
+            <option value="buck">Buck</option>
+            <option value="doe">Doe</option>
+          </select>
+        </div>
       </div>
-      ${huntLog.slice(-5).reverse().map(e => `
-        <div class="log-entry">
-          <span>${e.date}</span> · ${e.stand} · ${e.session}${e.harvest ? ' · 🦌 ' + e.harvest + ' killed' : ''}${e.note ? ' · ' + e.note : ''}
-        </div>
-      `).join('')}
+      <div class="log-form" style="gap:8px;margin-top:6px">
+        <input id="log-note" placeholder="Notes (optional)" style="flex:1;min-width:100px">
+        <button id="log-submit-btn" onclick="logHunt()" style="flex:0 0 auto;background:var(--green-dim);color:var(--text-bright);border:1px solid var(--green-dim);font-family:monospace;font-size:0.78rem;padding:6px 14px;border-radius:4px;cursor:pointer">Log Hunt</button>
+      </div>
+      <div style="font-family:monospace;font-size:0.68rem;color:var(--text-dim);padding:4px 0 6px">
+        Time &amp; conditions snapshot automatically on submit
+      </div>
+      ${huntLog.slice(-5).reverse().map(e => {
+        const bucksStr = e.bucksSeen > 0 ? ` · ${e.bucksSeen} buck${e.bucksSeen > 1 ? 's' : ''}` : '';
+        const doesStr = e.doesSeen > 0 ? ` · ${e.doesSeen} doe${e.doesSeen > 1 ? 's' : ''}` : '';
+        const harvestStr = e.harvest && e.harvest !== 'none' ? ` · 🦌 ${e.harvest} killed` : '';
+        const windStr = e.windDir && e.windSpeed ? ` · ${e.windDir} ${e.windSpeed}mph` : '';
+        const tempStr = e.tempF ? ` · ${Math.round(e.tempF)}°` : '';
+        return `<div class="log-entry">
+          <span style="color:var(--text-dim);font-size:0.72rem">${e.dateStr || e.date}</span> ${e.time ? '· ' + e.time + ' ' : ''}· ${e.stand} · ${e.session}${bucksStr}${doesStr}${harvestStr}${windStr}${tempStr}${e.note ? ' · ' + e.note : ''}
+        </div>`;
+      }).join('')}
     </div>
   `;
 
   main.innerHTML = html;
 }
 
-function toggleHarvestType() {
-  const checked = document.getElementById('log-harvest').checked;
-  const wrap = document.getElementById('harvest-type-wrap');
-  if (wrap) wrap.style.display = checked ? 'flex' : 'none';
-}
 
-function logHunt() {
+async function logHunt() {
   const stand = document.getElementById('log-stand').value;
   const session = document.getElementById('log-session').value;
   const note = document.getElementById('log-note').value;
-  const harvested = document.getElementById('log-harvest') && document.getElementById('log-harvest').checked;
-  const harvestType = harvested ? (document.querySelector('input[name="harvest-type"]:checked')?.value || 'buck') : null;
-  const dateStr = new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
-  huntLog.push({ date: dateStr, stand, session, note, harvest: harvestType, ts: Date.now() });
-  if (huntLog.length > 30) huntLog = huntLog.slice(-30);
-  saveLog();
+  const bucksSeen = parseInt(document.getElementById('log-bucks-seen')?.value || '0');
+  const doesSeen = parseInt(document.getElementById('log-does-seen')?.value || '0');
+  const harvest = document.getElementById('log-harvest-sel')?.value || 'none';
+
+  const btn = document.getElementById('log-submit-btn');
+  if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
+
+  // Auto-snapshot time
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+  const timeStr = now.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+
+  // Auto-snapshot conditions from live WU data
+  let condSnapshot = {};
+  if (wuCurrentData) {
+    condSnapshot = {
+      tempF: Math.round(wuCurrentData.tempF),
+      windSpeed: Math.round(wuCurrentData.windSpeedMph),
+      windDeg: wuCurrentData.windDeg,
+      windDir: windDirName(wuCurrentData.windDeg),
+      humidity: Math.round(wuCurrentData.humidity),
+      pTrend: pressureTrend(wuCurrentData.pressures)
+    };
+  }
+
+  const entry = {
+    ts: Date.now(),
+    dateStr, timeStr,
+    stand, session,
+    bucksSeen, doesSeen,
+    harvest: harvest !== 'none' ? harvest : null,
+    note,
+    ...condSnapshot
+  };
+
+  huntLog.push(entry);
+  if (huntLog.length > 100) huntLog = huntLog.slice(-100);
+  await saveLog();
+
+  // Reset form
+  document.getElementById('log-bucks-seen').value = '0';
+  document.getElementById('log-does-seen').value = '0';
+  document.getElementById('log-harvest-sel').value = 'none';
+  document.getElementById('log-note').value = '';
+  if (btn) { btn.textContent = 'Log Hunt'; btn.disabled = false; }
+
   renderDay(selectedDay);
 }
 
@@ -1839,7 +1993,8 @@ async function init() {
   try {
     [forecastData, wuCurrentData] = await Promise.all([
       fetchForecast(),
-      fetchWUCurrent()
+      fetchWUCurrent(),
+      loadHuntLog()
     ]);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
