@@ -1017,17 +1017,55 @@ function getMoonPhaseName(phase) {
   return { name: "New Moon", mult: 1.0, emoji: "🌑", note: "dark nights — deer hungry at first light" };
 }
 
+function getMoonTransit(date, lat, lon) {
+  // Calculate moon overhead (transit) and underfoot times for a given lat/lon
+  // Uses lunar mean longitude approximation — accurate to ~10 min
+  const D = (date - new Date(2000, 0, 1, 12)) / 86400000; // days since J2000
+  const L = (218.316 + 13.176396 * D) % 360; // moon mean longitude
+  const M = (134.963 + 13.064993 * D) % 360; // moon mean anomaly
+  const F = (93.272  + 13.229350 * D) % 360; // moon argument of latitude
+  const Mr = M * Math.PI / 180;
+  const Fr = F * Math.PI / 180;
+  const Lr = L * Math.PI / 180;
+
+  // Moon ecliptic longitude (simplified)
+  const lam = L + 6.289 * Math.sin(Mr) - 1.274 * Math.sin(2*Lr - Mr)
+              + 0.658 * Math.sin(2*Lr) - 0.214 * Math.sin(2*Mr)
+              - 0.186 * Math.sin(Lr * 2 - 0) + 0.114 * Math.sin(2*Fr);
+
+  // Right ascension from ecliptic longitude (simplified, obliquity ~23.44°)
+  const eps = 23.44 * Math.PI / 180;
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lam * Math.PI/180), Math.cos(lam * Math.PI/180)) * 180 / Math.PI;
+
+  // Greenwich Sidereal Time
+  const T = D / 36525;
+  const GST = (280.46061837 + 360.98564736629 * D + 0.000387933*T*T) % 360;
+
+  // Local Sidereal Time
+  const LST = (GST + lon) % 360; // lon is negative for west, but we'll use positive
+
+  // Hour angle of moon transit (overhead when HA = 0)
+  let HA = ((ra - (GST + lon) + 360) % 360);
+  if (HA > 180) HA -= 360;
+
+  // Transit time in hours from noon UTC, convert to local (UTC-5 for CST)
+  const transitUTC = 12 + HA / 15;
+  const transitLocal = ((transitUTC - 5) + 24) % 24; // CST offset
+  const underfootLocal = (transitLocal + 12) % 24;
+
+  return { overhead: transitLocal, underfoot: underfootLocal };
+}
+
 function getSolunarPeriods(date, lat, lon) {
-  // Simplified solunar — moon transit times
   const phase = getMoonPhase(date);
   const moonInfo = getMoonPhaseName(phase);
-  // Moon overhead ~every 24h50m, underfoot 12h25m later
-  // Rough major period times based on phase offset
   const baseHour = (phase / 29.53) * 24;
   const major1 = ((baseHour + 6) % 24);
   const major2 = ((major1 + 12.42) % 24);
   const minor1 = ((major1 + 6.21) % 24);
   const minor2 = ((major2 + 6.21) % 24);
+
+  const transit = getMoonTransit(date, lat, lon);
 
   const fmt = h => {
     const hh = Math.floor(h);
@@ -1036,7 +1074,7 @@ function getSolunarPeriods(date, lat, lon) {
     return `${hh > 12 ? hh - 12 : hh || 12}:${mm.toString().padStart(2,'0')}${ampm}`;
   };
 
-  return { major1, major2, minor1, minor2, moonInfo, fmt };
+  return { major1, major2, minor1, minor2, moonInfo, fmt, overhead: transit.overhead, underfoot: transit.underfoot };
 }
 
 // Wind direction helpers
@@ -1270,7 +1308,7 @@ function scoreVerdict(score, isAM, disqualified) {
   const pick = arr => arr[Math.floor(Date.now() / 60000) % arr.length];
   if (disqualified === 'heat') return pick([`Too hot — stay home`, `Heat's a killer — rest the stand`, `Too warm — deer aren't moving`, `Skip it — way too hot`]);
   if (disqualified === 'wind') return pick([`Too windy — stay home`, `Wind's wrecked it — stay home`, `Too much wind — don't burn the stand`, `Blowing too hard — skip it`]);
-  if (disqualified === 'rain') return pick([`Skip it — rain`, `Not in the rain — rest the stand`, `Rain's gonna ruin it — stay home`, `Wet and slow — skip it`]);
+  if (disqualified === 'rain') return pick([`It's raining — stay home`, `Raining like a cow on a flat rock — skip it`, `Not in this rain — rest the stand`, `Wet and useless — stay home`]);
   if (score >= 100) return pick([
     `Holy SHIT. This is the one you've been waiting for. You'll tell stories about this one. Tell the wife you'll see her when the buck is in the cooler.`,
     `Drop everything. Call in sick. This is a unicorn day — the kind you tell your grandkids about. Get. In. The. Stand.`,
@@ -1320,7 +1358,12 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
   } else if (amResult.disqualified === 'wind') {
     amSummary = `Wind's running ${Math.round(amWeather.windSpeedMph)} mph tomorrow morning — too much. Scent's gonna be all over the place and deer won't be moving anyway. Stay home.`;
   } else if (amResult.disqualified === 'rain') {
-    amSummary = `Heavy rain in the morning. Not worth burning a sit.`;
+    amSummary = pick([
+      `Raining like a cow pissing on a flat rock out there. Conditions look great — except for all the rain. Stay home.`,
+      `It's coming down hard. Everything else lines up, but deer don't move in a downpour and neither should you. Rest the stand.`,
+      `Pouring out there. Good solunar, good temps, and it doesn't matter one bit. You'd be soaked and scentless and alone. Stay home.`,
+      `Rain's wrecking it. Would be a fine morning otherwise — but it ain't otherwise. Skip it.`,
+    ]);
   } else {
     // Only reference solunar periods that fall within the actual hunting window (6:30-10am)
     const sessionMajors = [solunar.major1, solunar.major2].filter(h => h >= 6.5 && h < 10);
@@ -1686,6 +1729,10 @@ function renderDay(dayIdx) {
         ${solunar.moonInfo.emoji} ${solunar.moonInfo.name} · ${solunar.moonInfo.note} ·
         Major: <span>${solunar.fmt(solunar.major1)}, ${solunar.fmt(solunar.major2)}</span> ·
         Minor: <span>${solunar.fmt(solunar.minor1)}, ${solunar.fmt(solunar.minor2)}</span>
+      </div>
+      <div class="solunar-row">
+        🌙 Moon overhead: <span>${solunar.fmt(solunar.overhead)}</span> · underfoot: <span>${solunar.fmt(solunar.underfoot)}</span>
+        ${(() => { const amWindow = solunar.overhead >= 5 && solunar.overhead <= 10; const pmWindow = solunar.overhead >= 14 && solunar.overhead <= 19; const ufAM = solunar.underfoot >= 5 && solunar.underfoot <= 10; const ufPM = solunar.underfoot >= 14 && solunar.underfoot <= 19; if (amWindow || ufAM) return '· <span style="color:var(--green)">⚡ hits your AM sit window</span>'; if (pmWindow || ufPM) return '· <span style="color:var(--green)">⚡ hits your PM sit window</span>'; return ''; })()}
       </div>
       <div class="summary-box">${amSummary}</div>
     </div>
