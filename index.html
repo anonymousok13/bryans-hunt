@@ -1625,6 +1625,20 @@ function renderDay(dayIdx) {
   const solunar = getSolunarPeriods(date, LAT, LON);
   const amResult = computeScore(amWeather, solunar, date, true, dayIdx, civilTwilightAM);
   const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx, civilTwilightPM);
+
+  // Live station override — if KOKBARNS6 shows real precip today, disqualify regardless of model
+  if (dayIdx === 0 && wuCurrentData) {
+    const livePrecip = (wuCurrentData.imperial && wuCurrentData.imperial.precipTotal) || 0;
+    const liveHumidity = (wuCurrentData.imperial && wuCurrentData.imperial.humidity) || wuCurrentData.humidity || 0;
+    // Raining now: station shows measurable precip OR humidity is saturated (>= 97%) with any precip
+    if (livePrecip >= 0.1 || (livePrecip > 0 && liveHumidity >= 97)) {
+      if (!amResult.disqualified) {
+        amResult.disqualified = 'rain';
+        amResult.score = 10;
+      }
+    }
+  }
+
   const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx, sunriseHour, sunsetHour);
 
   const phase = getRutPhase(date);
