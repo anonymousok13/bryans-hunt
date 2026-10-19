@@ -376,27 +376,12 @@
   .day-tab.has-alert.active {
     border-color: var(--green);
   }
-  .day-tab.prime-day {
-    border-color: gold;
-    box-shadow: 0 0 6px rgba(255,215,0,0.4);
-    animation: pulse-gold 2s ease-in-out infinite;
-  }
-  .day-tab.prime-day.active {
-    border-color: gold;
-  }
-  @keyframes pulse-gold {
-    0%,100% { box-shadow: 0 0 6px rgba(255,215,0,0.3); }
-    50% { box-shadow: 0 0 12px rgba(255,215,0,0.7); }
-  }
 
   /* Tab nav */
   .tab-nav {
     display: flex;
     background: var(--bg2);
     border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 9;
   }
   .tab-nav-btn {
     flex: 1;
@@ -495,81 +480,6 @@
     color: var(--text-dim);
     padding: 0 14px 8px;
   }
-
-  /* Live station widget */
-  .live-station {
-    background: rgba(122,182,72,0.06);
-    border: 1px solid rgba(122,182,72,0.28);
-    border-radius: 6px;
-    padding: 10px 14px;
-    margin-bottom: 12px;
-    font-family: monospace;
-    font-size: 0.72rem;
-  }
-  .live-station-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-  }
-  .live-badge {
-    background: var(--green);
-    color: var(--bg);
-    font-size: 0.6rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 3px;
-    letter-spacing: 0.06em;
-  }
-  .live-metrics {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    color: var(--text);
-  }
-  /* WU settings */
-  .wu-settings {
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-  .wu-settings-label {
-    font-size: 0.65rem;
-    font-family: monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-dim);
-    margin-bottom: 4px;
-  }
-  .wu-key-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 6px;
-    align-items: center;
-  }
-  .wu-key-row input {
-    flex: 1;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: monospace;
-    font-size: 0.75rem;
-    padding: 6px 10px;
-    border-radius: 4px;
-    min-width: 0;
-  }
-  .wu-key-row button {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    font-family: monospace;
-    font-size: 0.72rem;
-    padding: 6px 12px;
-    border-radius: 4px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .wu-key-row button:active { opacity: 0.7; }
 </style>
 </head>
 <body>
@@ -580,9 +490,8 @@
 </header>
 
 <div class="tab-nav">
-  <button class="tab-nav-btn active" onclick="switchTab('forecast')">Forecast</button>
-  <button class="tab-nav-btn" onclick="switchTab('calendar')">Season</button>
-  <button class="tab-nav-btn" onclick="switchTab('deerid')">Buck Log</button>
+  <button class="tab-nav-btn active" onclick="switchTab('forecast')">7-Day Forecast</button>
+  <button class="tab-nav-btn" onclick="switchTab('calendar')">Season Calendar</button>
 </div>
 
 <div id="forecast-tab">
@@ -598,297 +507,20 @@
   <div class="cal-view" id="cal-content"></div>
 </div>
 
-<div id="deerid-tab" style="display:none">
-  <div class="cal-view" id="deerid-content">
-
-    <!-- Add Buck Form -->
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px" id="buck-add-panel">
-      <div style="font-size:0.72rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:10px">Buck Inventory · Osage County Lease</div>
-
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <input id="buck-name" type="text" placeholder="Nickname (e.g. Kicker, Split Brow)" maxlength="40"
-          style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;width:100%">
-
-        <div style="display:flex;gap:8px">
-          <input id="buck-points" type="number" placeholder="Points" min="1" max="30"
-            style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;flex:1;min-width:0">
-          <input id="buck-date" type="date"
-            style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;flex:2;min-width:0">
-        </div>
-
-        <input id="buck-stand" type="text" placeholder="Where seen (stand, field, etc.)" maxlength="60"
-          style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.8rem;padding:8px 10px;border-radius:4px;width:100%">
-
-        <textarea id="buck-notes" placeholder="Notes — body maturity, rack description, behavior, time of day" rows="2" maxlength="300"
-          style="background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:monospace;font-size:0.78rem;padding:8px 10px;border-radius:4px;width:100%;resize:none;line-height:1.5"></textarea>
-
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:0.72rem;font-family:monospace;color:var(--text-dim)">Verdict:</span>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:monospace;font-size:0.78rem;color:var(--green)">
-            <input type="radio" name="buck-verdict" value="shooter" checked style="accent-color:var(--green)"> Shooter
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:monospace;font-size:0.78rem;color:var(--amber)">
-            <input type="radio" name="buck-verdict" value="watch" style="accent-color:var(--amber)"> Watch
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-family:monospace;font-size:0.78rem;color:var(--red)">
-            <input type="radio" name="buck-verdict" value="pass" style="accent-color:var(--red)"> Pass
-          </label>
-        </div>
-
-        <div>
-          <input type="file" id="buck-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this)">
-          <button id="buck-photo-label" onclick="document.getElementById('buck-photo-input').click()"
-            style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.75rem;padding:8px 12px;border-radius:4px;cursor:pointer;width:100%;text-align:left">📷 Add Photo (optional)</button>
-        </div>
-
-        <button id="buck-add-btn" onclick="addBuck()" style="background:var(--green-dim);color:var(--text-bright);border:none;font-family:monospace;font-size:0.8rem;padding:10px;border-radius:4px;cursor:pointer;width:100%">+ Add to Inventory</button>
-      </div>
-    </div>
-
-    <!-- Buck List -->
-    <div id="buck-list"></div>
-
-    <!-- Empty state (shown when no bucks) -->
-    <div id="buck-empty" style="display:none;text-align:center;padding:32px 16px;color:var(--text-dim);font-family:monospace;font-size:0.78rem;line-height:1.8">
-      No bucks logged yet.<br>Add one above — keep all the hunters on the same page.
-    </div>
-
-    <!-- Standard reminder -->
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:12px">
-      <div style="font-size:0.65rem;font-family:monospace;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:6px">Osage County Standard</div>
-      <div style="font-size:0.75rem;color:var(--text);line-height:1.6">
-        Shooter: Mature body — thick neck, swayed back, heavy belly. Fat tines and heavy bases. Mass over spread. 3.5+ years minimum.<br><br>
-        Pass: Slim neck, long legs, pencil tines. Wide doesn't matter if he's still a 2.5. Let him walk.
-      </div>
-    </div>
-
-  </div>
-</div>
-
 <script>
 const LAT = 36.678800;
 const LON = -96.078444;
-const STAND_LABEL = "Bryan's Lease — Osage County";
-const WU_STATION = 'KOKBARNS6'; // Barnsdall, OK — closest rural PWS
-
-const wuApiKey = 'f044d88f729a4ef784d88f729a0ef7fb';
-let wuCurrentData = null;
+const STAND_LABEL = "Bryan's Place — Osage County";
 
 // Tab switching
 function switchTab(tab) {
   document.getElementById('forecast-tab').style.display = tab === 'forecast' ? 'block' : 'none';
   document.getElementById('calendar-tab').style.display = tab === 'calendar' ? 'block' : 'none';
-  document.getElementById('deerid-tab').style.display = tab === 'deerid' ? 'block' : 'none';
   document.querySelectorAll('.tab-nav-btn').forEach((b, i) => {
-    b.classList.toggle('active',
-      (i === 0 && tab === 'forecast') ||
-      (i === 1 && tab === 'calendar') ||
-      (i === 2 && tab === 'deerid')
-    );
+    b.classList.toggle('active', (i === 0 && tab === 'forecast') || (i === 1 && tab === 'calendar'));
   });
   if (tab === 'calendar') renderCalendar();
-  if (tab === 'deerid') loadBucks();
-  if (tab === 'forecast') loadHuntLog().then(() => renderDay(selectedDay));
 }
-
-// Buck Inventory — JSONBin + Cloudinary backend
-const JSONBIN_BIN_ID   = '6acbd253ac6210605a287c41';
-const JSONBIN_KEY      = '$2a$10$oODU9FNyHqmkeezxrIINLejiLXqr85BU4W4zsQyQui8WS856h8w/m';
-const CLOUDINARY_CLOUD = 'rogbsvjz';
-const CLOUDINARY_PRESET = 'bryans_hunt'; // unsigned upload preset — create this in Cloudinary settings
-
-let buckInventory = [];
-let buckSyncing = false;
-
-async function loadBucks() {
-  try {
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-      headers: { 'X-Access-Key': JSONBIN_KEY }
-    });
-    if (!resp.ok) throw new Error('fetch failed');
-    const data = await resp.json();
-    buckInventory = data.record.bucks || [];
-    if (data.record.huntLog) huntLog = data.record.huntLog;
-  } catch(e) {
-    // Fall back to localStorage if offline
-    try { buckInventory = JSON.parse(localStorage.getItem('buckInventory') || '[]'); } catch(e2) { buckInventory = []; }
-    try { huntLog = JSON.parse(localStorage.getItem('huntLog') || '[]'); } catch(e2) { huntLog = []; }
-  }
-  renderBucks();
-}
-
-async function saveBucks() {
-  try { localStorage.setItem('buckInventory', JSON.stringify(buckInventory)); } catch(e) {}
-  try {
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-      headers: { 'X-Access-Key': JSONBIN_KEY }
-    });
-    const existing = resp.ok ? (await resp.json()).record : {};
-    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
-      body: JSON.stringify({ ...existing, bucks: buckInventory })
-    });
-  } catch(e) { /* offline — localStorage already saved */ }
-}
-
-async function uploadPhoto(file) {
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('upload_preset', CLOUDINARY_PRESET);
-  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
-    method: 'POST', body: fd
-  });
-  if (!resp.ok) throw new Error('Upload failed');
-  const data = await resp.json();
-  return data.secure_url;
-}
-
-async function addBuck() {
-  const name = document.getElementById('buck-name').value.trim();
-  const points = document.getElementById('buck-points').value.trim();
-  const date = document.getElementById('buck-date').value;
-  const stand = document.getElementById('buck-stand').value.trim();
-  const notes = document.getElementById('buck-notes').value.trim();
-  const verdict = document.querySelector('input[name="buck-verdict"]:checked')?.value || 'watch';
-  const photoInput = document.getElementById('buck-photo-input');
-  const addBtn = document.getElementById('buck-add-btn');
-
-  if (!name) { document.getElementById('buck-name').focus(); return; }
-
-  if (addBtn) { addBtn.textContent = 'Saving...'; addBtn.disabled = true; }
-
-  let photoUrl = null;
-  if (photoInput && photoInput.files && photoInput.files[0]) {
-    try {
-      photoUrl = await uploadPhoto(photoInput.files[0]);
-    } catch(e) {
-      if (addBtn) { addBtn.textContent = '+ Add to Inventory'; addBtn.disabled = false; }
-      alert('Photo upload failed — check your connection and try again.');
-      return;
-    }
-  }
-
-  const buck = {
-    id: Date.now(),
-    name,
-    points: points ? parseInt(points) : null,
-    date: date || new Date().toISOString().slice(0, 10),
-    stand,
-    notes,
-    verdict,
-    photoUrl,
-    sightings: 1
-  };
-
-  buckInventory.unshift(buck);
-  await saveBucks();
-
-  // Clear form
-  document.getElementById('buck-name').value = '';
-  document.getElementById('buck-points').value = '';
-  document.getElementById('buck-date').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('buck-stand').value = '';
-  document.getElementById('buck-notes').value = '';
-  if (photoInput) { photoInput.value = ''; }
-  document.getElementById('buck-photo-label').textContent = '📷 Add Photo (optional)';
-  document.querySelector('input[name="buck-verdict"][value="shooter"]').checked = true;
-  if (addBtn) { addBtn.textContent = '+ Add to Inventory'; addBtn.disabled = false; }
-
-  renderBucks();
-}
-
-function deleteBuck(id) {
-  if (!confirm('Remove this buck from the inventory?')) return;
-  buckInventory = buckInventory.filter(b => b.id !== id);
-  saveBucks();
-  renderBucks();
-}
-
-function toggleBuckVerdict(id) {
-  const buck = buckInventory.find(b => b.id === id);
-  if (!buck) return;
-  const cycle = { shooter: 'watch', watch: 'pass', pass: 'shooter' };
-  buck.verdict = cycle[buck.verdict] || 'watch';
-  saveBucks();
-  renderBucks();
-}
-
-function bumpSighting(id) {
-  const buck = buckInventory.find(b => b.id === id);
-  if (!buck) return;
-  buck.sightings = (buck.sightings || 1) + 1;
-  buck.lastSeen = new Date().toISOString().slice(0, 10);
-  saveBucks();
-  renderBucks();
-}
-
-function handlePhotoSelect(input) {
-  const label = document.getElementById('buck-photo-label');
-  if (label && input.files && input.files[0]) {
-    label.textContent = '📷 ' + input.files[0].name;
-  }
-}
-
-function renderBucks() {
-  const list = document.getElementById('buck-list');
-  const empty = document.getElementById('buck-empty');
-  if (!list) return;
-
-  // Pre-fill date input with today if empty
-  const dateInput = document.getElementById('buck-date');
-  if (dateInput && !dateInput.value) {
-    dateInput.value = new Date().toISOString().slice(0, 10);
-  }
-
-  if (!buckInventory.length) {
-    list.innerHTML = '';
-    if (empty) empty.style.display = '';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-
-  const verdictStyle = {
-    shooter: { border: 'var(--green)', bg: 'rgba(122,182,72,0.07)', badge: '#7ab648', label: 'SHOOTER' },
-    watch:   { border: 'var(--amber)', bg: 'rgba(200,146,42,0.07)', badge: '#c8922a', label: 'WATCH'   },
-    pass:    { border: 'var(--red)',   bg: 'rgba(200,74,42,0.07)',  badge: '#c84a2a', label: 'PASS'     }
-  };
-
-  list.innerHTML = buckInventory.map(buck => {
-    const vs = verdictStyle[buck.verdict] || verdictStyle.watch;
-    const dateStr = buck.date ? buck.date.replace(/-/g, '/').slice(5) : '';
-    const lastStr = buck.lastSeen ? ` · last ${buck.lastSeen.replace(/-/g, '/').slice(5)}` : '';
-    const ptsStr = buck.points ? `${buck.points}-pt · ` : '';
-    const sightStr = buck.sightings > 1 ? ` · ${buck.sightings} sightings` : '';
-
-    return `
-      <div style="background:var(--bg2);border:1px solid ${vs.border};border-radius:6px;overflow:hidden;margin-bottom:8px">
-        ${buck.photoUrl ? `<img src="${buck.photoUrl}" style="width:100%;max-height:220px;object-fit:cover;display:block">` : ''}
-        <div style="padding:12px 14px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
-            <div>
-              <span style="font-size:0.95rem;color:var(--text-bright);font-family:Georgia,serif">${buck.name}</span>
-              ${buck.points ? `<span style="font-size:0.72rem;color:var(--text-dim);font-family:monospace;margin-left:8px">${buck.points}-pt</span>` : ''}
-            </div>
-            <button onclick="toggleBuckVerdict(${buck.id})" style="background:${vs.badge};color:#000;border:none;font-family:monospace;font-size:0.6rem;font-weight:bold;padding:3px 8px;border-radius:3px;cursor:pointer;letter-spacing:0.06em;white-space:nowrap;flex-shrink:0">${vs.label}</button>
-          </div>
-
-          <div style="font-size:0.7rem;color:var(--text-dim);font-family:monospace;margin-bottom:${buck.notes ? '6px' : '0'}">
-            ${dateStr}${lastStr}${sightStr}${buck.stand ? ` · ${buck.stand}` : ''}
-          </div>
-
-          ${buck.notes ? `<div style="font-size:0.78rem;color:var(--text);line-height:1.5;margin-bottom:8px">${buck.notes}</div>` : ''}
-
-          <div style="display:flex;gap:8px;margin-top:${buck.notes ? '0' : '8px'}">
-            <button onclick="bumpSighting(${buck.id})" style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.68rem;padding:4px 10px;border-radius:4px;cursor:pointer">+ Seen again</button>
-            <button onclick="deleteBuck(${buck.id})" style="background:var(--bg3);color:var(--text-dim);border:1px solid var(--border);font-family:monospace;font-size:0.68rem;padding:4px 10px;border-radius:4px;cursor:pointer">Remove</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
 
 // Season calendar events
 const SEASON_EVENTS = [
@@ -1017,55 +649,17 @@ function getMoonPhaseName(phase) {
   return { name: "New Moon", mult: 1.0, emoji: "🌑", note: "dark nights — deer hungry at first light" };
 }
 
-function getMoonTransit(date, lat, lon) {
-  // Calculate moon overhead (transit) and underfoot times for a given lat/lon
-  // Uses lunar mean longitude approximation — accurate to ~10 min
-  const D = (date - new Date(2000, 0, 1, 12)) / 86400000; // days since J2000
-  const L = (218.316 + 13.176396 * D) % 360; // moon mean longitude
-  const M = (134.963 + 13.064993 * D) % 360; // moon mean anomaly
-  const F = (93.272  + 13.229350 * D) % 360; // moon argument of latitude
-  const Mr = M * Math.PI / 180;
-  const Fr = F * Math.PI / 180;
-  const Lr = L * Math.PI / 180;
-
-  // Moon ecliptic longitude (simplified)
-  const lam = L + 6.289 * Math.sin(Mr) - 1.274 * Math.sin(2*Lr - Mr)
-              + 0.658 * Math.sin(2*Lr) - 0.214 * Math.sin(2*Mr)
-              - 0.186 * Math.sin(Lr * 2 - 0) + 0.114 * Math.sin(2*Fr);
-
-  // Right ascension from ecliptic longitude (simplified, obliquity ~23.44°)
-  const eps = 23.44 * Math.PI / 180;
-  const ra = Math.atan2(Math.cos(eps) * Math.sin(lam * Math.PI/180), Math.cos(lam * Math.PI/180)) * 180 / Math.PI;
-
-  // Greenwich Sidereal Time
-  const T = D / 36525;
-  const GST = (280.46061837 + 360.98564736629 * D + 0.000387933*T*T) % 360;
-
-  // Local Sidereal Time
-  const LST = (GST + lon) % 360; // lon is negative for west, but we'll use positive
-
-  // Hour angle of moon transit (overhead when HA = 0)
-  let HA = ((ra - (GST + lon) + 360) % 360);
-  if (HA > 180) HA -= 360;
-
-  // Transit time in hours from noon UTC, convert to local (UTC-5 for CST)
-  const transitUTC = 12 + HA / 15;
-  const transitLocal = ((transitUTC - 5) + 24) % 24; // CST offset
-  const underfootLocal = (transitLocal + 12) % 24;
-
-  return { overhead: transitLocal, underfoot: underfootLocal };
-}
-
 function getSolunarPeriods(date, lat, lon) {
+  // Simplified solunar — moon transit times
   const phase = getMoonPhase(date);
   const moonInfo = getMoonPhaseName(phase);
+  // Moon overhead ~every 24h50m, underfoot 12h25m later
+  // Rough major period times based on phase offset
   const baseHour = (phase / 29.53) * 24;
   const major1 = ((baseHour + 6) % 24);
   const major2 = ((major1 + 12.42) % 24);
   const minor1 = ((major1 + 6.21) % 24);
   const minor2 = ((major2 + 6.21) % 24);
-
-  const transit = getMoonTransit(date, lat, lon);
 
   const fmt = h => {
     const hh = Math.floor(h);
@@ -1074,7 +668,7 @@ function getSolunarPeriods(date, lat, lon) {
     return `${hh > 12 ? hh - 12 : hh || 12}:${mm.toString().padStart(2,'0')}${ampm}`;
   };
 
-  return { major1, major2, minor1, minor2, moonInfo, fmt, overhead: transit.overhead, underfoot: transit.underfoot };
+  return { major1, major2, minor1, minor2, moonInfo, fmt };
 }
 
 // Wind direction helpers
@@ -1084,8 +678,7 @@ function windDirName(deg) {
 }
 
 function isMoneyWind(deg) {
-  // NNE wind blows FROM NNE, carrying scent SSW — offset from due-south deer approach
-  // Both stands benefit: scent pushed away from creek bottom deer approach
+  // NNE, NE, N, NW winds are good for the south ladder stand
   const dir = windDirName(deg);
   return ['N','NNE','NE','NNW','WNW'].includes(dir);
 }
@@ -1095,42 +688,18 @@ function isWarmHumidWind(deg) {
   return ['S','SSW','SW','SSE','SE'].includes(dir);
 }
 
-function isCautiousEntryWind(deg) {
-  // SW entry puts scent on south end before you climb — warn but don't kill score
-  const dir = windDirName(deg);
-  return ['SW','WSW'].includes(dir);
-}
-
-function windScore(speedMph, deg, rutPhase) {
+function windScore(speedMph, deg) {
   let score = 0;
-  // Speed scoring — 5 mph steady is never a dealbreaker
+  // Speed scoring
   if (speedMph >= 4 && speedMph <= 10) score = 100;
-  else if (speedMph < 4) score = 65; // dead calm — scent pools but manageable
-  else if (speedMph <= 15) score = 78;
-  else if (speedMph <= 20) score = 45;
+  else if (speedMph < 4) score = 60; // dead calm — scent pools
+  else if (speedMph <= 15) score = 75;
+  else if (speedMph <= 20) score = 40;
   else if (speedMph <= 25) score = 15;
   else score = 0;
-
-  // Direction scoring — scaled by rut phase
-  // Early season: deer less pressure-sensitive, south wind is caution not dealbreaker
-  // Rut phases: south wind more problematic as deer are covering more ground
-  const dir = windDirName(deg);
-  const isEarlySeason = rutPhase === 'Early Season' || rutPhase === 'Pre-Rut';
-
-  if (isMoneyWind(deg)) {
-    score = Math.min(100, score + 15);
-  } else if (['S','SSE','SE'].includes(dir)) {
-    // True south/SE — blowing scent back toward creek approach
-    score = Math.max(0, score - (isEarlySeason ? 7 : 22));
-  } else if (['SSW','SW'].includes(dir)) {
-    // SW — entry concern but sit may still be fine
-    score = Math.max(0, score - (isEarlySeason ? 4 : 15));
-  } else if (['WSW','ESE','ENE'].includes(dir)) {
-    // Crosswind — neutral to slight caution
-    score = Math.max(0, score - 5);
-  }
-  // E, NE, NNE, N, NW, WNW already handled by isMoneyWind above
-
+  // Direction bonus/penalty
+  if (isMoneyWind(deg)) score = Math.min(100, score + 15);
+  else if (isWarmHumidWind(deg)) score = Math.max(0, score - 20);
   return score;
 }
 
@@ -1184,7 +753,7 @@ function pressureScore(pTrend) {
   return 50; // steady — neutral
 }
 
-function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
+function computeScore(weather, solunar, date, isAM, dayIdx) {
   const { tempF, windSpeedMph, windDeg, humidity, precip, pressures } = weather;
   const pTrend = pressureTrend(pressures);
   const moonMult = solunar.moonInfo.mult;
@@ -1196,28 +765,12 @@ function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
   const minors = [solunar.minor1, solunar.minor2].filter(h => isAM ? h < 12 : h >= 12);
   const solunarScore = majors.length > 0 ? 90 : minors.length > 0 ? 65 : 40;
 
-  // Crepuscular solunar bonus — periods near civil twilight are the most valuable
-  // Deer are hardwired to peak at dawn/dusk regardless of other conditions
-  const twilightAnchor = civilTwilight || (isAM ? 7.0 : 19.5);
-  const allPeriods = [solunar.major1, solunar.major2, solunar.minor1, solunar.minor2];
-  const majorsInSession = [solunar.major1, solunar.major2].filter(h => isAM ? (h >= 6 && h < 10) : (h >= 14 && h < 19));
-  const minorsInSession = [solunar.minor1, solunar.minor2].filter(h => isAM ? (h >= 6 && h < 10) : (h >= 14 && h < 19));
-  const closestToTwilight = Math.min(...allPeriods.map(h => Math.abs(h - twilightAnchor)));
-  // Big bonus if a major overlaps twilight window, smaller for minor, nothing for periods outside session
-  const solunarProximityBonus = closestToTwilight <= 0.75 ? 12 :  // within 45 min of twilight
-                                 closestToTwilight <= 1.5  ? 8  :  // within 90 min
-                                 majorsInSession.length > 0 ? 6  :  // major in session
-                                 minorsInSession.length > 0 ? 3  :  // minor in session
-                                 0;
-
-  const phase = getRutPhase(date);
-  const wScore = windScore(windSpeedMph, windDeg, phase.name);
+  const wScore = windScore(windSpeedMph, windDeg);
   const tScore = tempScore(tempF, windDeg, humidity);
   const pScore = precipScore(precip);
   const bScore = pressureScore(pTrend); // barometric
 
   // Disqualifiers — always apply regardless of day distance
-  if (tempF > 85) return { score: 5, disqualified: 'heat', pTrend, majors, minors };
   if (windSpeedMph > 22) return { score: 15, disqualified: 'wind', pTrend, majors, minors };
   if (precip > 0.5) return { score: 10, disqualified: 'rain', pTrend, majors, minors };
 
@@ -1262,39 +815,9 @@ function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
     pScore       * wPrecip   +
     solunarScore * wSolunar  +
     moonMult * 100 * wMoon   +
-    rutMult  * 100 * wRut    +
-    solunarProximityBonus;
+    rutMult  * 100 * wRut;
 
   return { score: Math.min(100, Math.round(raw)), disqualified: null, pTrend, majors, minors };
-}
-
-// Historical nudge: look at past logs for same stand + similar wind dir, return ±0-10
-function historicalNudge(stand, windDeg, isAM) {
-  if (!huntLog.length) return 0;
-  const session = isAM ? 'Morning' : 'Evening';
-  const relevant = huntLog.filter(e => {
-    if (e.stand !== stand) return false;
-    // Match AM/PM loosely — Morning or All Day for AM, Evening or All Day for PM
-    const sessionMatch = e.session === 'All Day' || e.session === session;
-    if (!sessionMatch) return false;
-    // Wind direction within 45 degrees
-    if (e.windDeg == null) return false;
-    let diff = Math.abs((e.windDeg - windDeg + 360) % 360);
-    if (diff > 180) diff = 360 - diff;
-    return diff <= 45;
-  });
-  if (relevant.length < 2) return 0; // not enough data yet
-  // Score each entry: bucks seen weighted most
-  const avg = relevant.reduce((sum, e) => {
-    const sightings = e.sightings || [];
-    const b = Math.min(sightings.filter(s => s.type === 'buck').reduce((a,s) => a + s.count, 0), 4);
-    const d = Math.min(sightings.filter(s => s.type === 'doe').reduce((a,s) => a + s.count, 0), 4);
-    const h = e.harvest ? 2 : 0;
-    return sum + b * 3 + d * 1 + h;
-  }, 0) / relevant.length;
-  // avg of 0 → -8, avg of 3 → 0, avg of 6+ → +10
-  const nudge = Math.round((avg - 3) * (10 / 6));
-  return Math.max(-8, Math.min(10, nudge));
 }
 
 function scoreClass(score) {
@@ -1303,34 +826,23 @@ function scoreClass(score) {
   return 'skip';
 }
 
-function scoreVerdict(score, isAM, disqualified) {
+function scoreVerdict(score, isAM) {
   const session = isAM ? 'morning' : 'afternoon';
-  const pick = arr => arr[Math.floor(Date.now() / 60000) % arr.length];
-  if (disqualified === 'heat') return pick([`Too hot — stay home`, `Heat's a killer — rest the stand`, `Too warm — deer aren't moving`, `Skip it — way too hot`]);
-  if (disqualified === 'wind') return pick([`Too windy — stay home`, `Wind's wrecked it — stay home`, `Too much wind — don't burn the stand`, `Blowing too hard — skip it`]);
-  if (disqualified === 'rain') return pick([`It's raining — stay home`, `Raining like a cow on a flat rock — skip it`, `Not in this rain — rest the stand`, `Wet and useless — stay home`]);
-  if (score >= 100) return pick([
-    `Holy SHIT. This is the one you've been waiting for. You'll tell stories about this one. Tell the wife you'll see her when the buck is in the cooler.`,
-    `Drop everything. Call in sick. This is a unicorn day — the kind you tell your grandkids about. Get. In. The. Stand.`,
-    `Perfect conditions. Every single box checked. If you don't go today you don't deserve a buck.`,
-    `This is what all those slow sits were for. 100. Don't you dare stay home.`,
-    `The algorithm doesn't lie and it's never said this before. Go. Now.`
-  ]);
-  if (score >= 85) return pick([`Boys, hunt the ${session}`, `Get in the stand — this is it`, `Don't miss this ${session}`, `Prime ${session} — let's go`, `This is the one boys`, `All systems go — hunt it`]);
-  if (score >= 72) return pick([`Hunt the ${session}`, `Set the alarm — worth it`, `Good ${session} — go`, `Conditions are there — hunt it`, `Worth the sit`, `Go hunting`]);
-  if (score >= 55) return pick([`Marginal ${session} — your call`, `Could go either way`, `Not great, not terrible`, `Deer might move — up to you`, `Flip a coin on this one`, `Slim chance — your call`]);
-  if (score >= 40) return pick([`Probably skip the ${session}`, `Rest the stand`, `Not worth the sit`, `Save it for a better day`, `Low odds — skip it`]);
-  return pick([`Stay home — skip the ${session}`, `Rest the stand today`, `Nothing doing — stay home`, `Dead day — don't burn it`, `Skip it — conditions are bad`]);
+  if (score >= 85) return `Boys, hunt the ${session}`;
+  if (score >= 72) return `Hunt the ${session}`;
+  if (score >= 55) return `Marginal ${session} — your call`;
+  if (score >= 40) return `Probably skip the ${session}`;
+  return `Stay home — skip the ${session}`;
 }
 
 function getForecastConfidence(dayIdx) {
   if (dayIdx <= 1) return { hedge: '', closing: '' };
   if (dayIdx <= 3) return { hedge: 'Looking a couple days out — ', closing: ' Keep an eye on it as it gets closer.' };
   if (dayIdx <= 5) return { hedge: 'Four to five days out, so take this with some salt — ', closing: ' Check back in a day or two when the forecast firms up.' };
-  return { hedge: 'This far out it\'s more a heads-up than a verdict — ', closing: ' Too early to set your alarm, but go ahead and circle it.' };
+  return { hedge: 'This far out it\'s more a heads-up than a verdict — ', closing: ' Way too early to set your alarm, but circle it.' };
 }
 
-function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx, sunriseHour, sunsetHour) {
+function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx) {
   const phase = getRutPhase(date);
   const pTrend = amResult.pTrend;
   const windDir = windDirName(amWeather.windDeg);
@@ -1353,47 +865,24 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
     : '';
 
   // AM summary
-  if (amResult.disqualified === 'heat') {
-    amSummary = `${Math.round(amWeather.tempF)}° in the morning — too damn hot. Deer aren't moving in this heat. Stay home and save the stand.`;
-  } else if (amResult.disqualified === 'wind') {
+  if (amResult.disqualified === 'wind') {
     amSummary = `Wind's running ${Math.round(amWeather.windSpeedMph)} mph tomorrow morning — too much. Scent's gonna be all over the place and deer won't be moving anyway. Stay home.`;
   } else if (amResult.disqualified === 'rain') {
-    amSummary = pick([
-      `Raining like a cow pissing on a flat rock out there. Conditions look great — except for all the rain. Stay home.`,
-      `It's coming down hard. Everything else lines up, but deer don't move in a downpour and neither should you. Rest the stand.`,
-      `Pouring out there. Good solunar, good temps, and it doesn't matter one bit. You'd be soaked and scentless and alone. Stay home.`,
-      `Rain's wrecking it. Would be a fine morning otherwise — but it ain't otherwise. Skip it.`,
-    ]);
+    amSummary = `Heavy rain in the morning. Not worth burning a sit.`;
   } else {
-    // Only reference solunar periods that fall within the actual hunting window (6:30-10am)
-    const sessionMajors = [solunar.major1, solunar.major2].filter(h => h >= 6.5 && h < 10);
-    const sessionMinors = [solunar.minor1, solunar.minor2].filter(h => h >= 6.5 && h < 10);
-    const srHour = sunriseHour || 7.0;
-    const twilightMajors = [solunar.major1, solunar.major2].filter(h => Math.abs(h - srHour) <= 0.75);
-    const majorStr = twilightMajors.length > 0
-      ? ` Major solunar overlaps sunrise at ${solunar.fmt(twilightMajors[0])} — that is a prime window.`
-      : sessionMajors.length > 0
-      ? ` Major solunar at ${solunar.fmt(sessionMajors[0])}.`
-      : sessionMinors.length > 0
-      ? ` Minor solunar at ${solunar.fmt(sessionMinors[0])}.`
-      : '';
+    const majorStr = amResult.majors && amResult.majors.length > 0
+      ? ` Major solunar hits at ${solunar.fmt(amResult.majors[0])}.` : '';
 
-    const amWindDir = windDirName(amWeather.windDeg);
-    const isStalkWind = ['N','NNE','NE','NNW'].includes(amWindDir) && amWeather.windSpeedMph >= 7 && amWeather.windSpeedMph <= 16;
-    const isStalkTemp = amWeather.tempF >= 38 && amWeather.tempF <= 68;
-    const isStalkHumid = amWeather.humidity >= 40 && amWeather.humidity <= 75;
-    const isGoodStalkDay = isStalkWind && isStalkTemp && isStalkHumid && amWeather.windSpeedMph > 3;
     const stalkNote = isGoodStalkDay ? ` Wind's steady ${amWindDir} at ${Math.round(amWeather.windSpeedMph)} mph — that ledge between the south stand and the creek bottom is set up for a stalk. Bryan might want to leave the saddle at home and work that edge.` : '';
-    const entryWarning = isCautiousEntryWind(amWeather.windDeg) ? ` Watch your entry — ${amWindDir} wind could put scent on the south end before you climb. Come in from the north or east.` : '';
 
     if (amResult.score >= 85) {
-      amSummary = `${confidence.hedge}Hey fellas — morning looks like money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind\'s in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}${stalkNote}${entryWarning}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Hey fellas — morning looks like money. ${tempStr} at first light, ${windStr}${isMoneyAM ? ', wind\'s in your favor for the south stand' : ''}.${majorStr} ${phase.name === 'Seeking Phase' || phase.name === 'Lockdown / Peak' ? 'Bucks are gonna be cruising — get in there before light and don\'t come out until 10.' : 'Get in the stand before first light and sit tight.'}${pressureCallout}${stalkNote}${confidence.closing}`;
     } else if (amResult.score >= 72) {
-      amSummary = `${confidence.hedge}Morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind\'s right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}${stalkNote}${entryWarning}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Morning looks good boys. ${tempStr}, ${windStr}${isMoneyAM ? ' — wind\'s right for the south stand' : ''}.${majorStr} Worth setting the alarm.${pressureCallout}${stalkNote}${confidence.closing}`;
     } else if (amResult.score >= 48) {
-      amSummary = `${confidence.hedge}Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${stalkNote}${entryWarning}${pressureCallout}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Morning's marginal — ${tempStr}, ${windStr}. Conditions aren't great but deer could still move.${majorStr} Sit if you've got nothing going on, but don't lose sleep over it.${stalkNote}${pressureCallout}${confidence.closing}`;
     } else {
-      amSummary = `${confidence.hedge}Slow morning. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind\'s pulling humidity up — ' : ''}Not expecting much. Rest the stand.${entryWarning}${pressureCallout}${confidence.closing}`;
+      amSummary = `${confidence.hedge}Slow morning. ${tempStr}, ${windStr}. ${isWarmHumidWind(amWeather.windDeg) ? 'That south wind\'s pulling humidity up — ' : ''}Not expecting much. Rest the stand.${pressureCallout}${confidence.closing}`;
     }
   }
 
@@ -1403,12 +892,14 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
 
   // Stalk condition check — Bryan's ledge between S stand and creek bottom
   // Good stalk day: steady NNE/N/NW wind 8-15 mph, overcast or partly cloudy, cool temps
-
+  const amWindDir = windDirName(amWeather.windDeg);
+  const isStalkWind = ['N','NNE','NE','NNW'].includes(amWindDir) && amWeather.windSpeedMph >= 7 && amWeather.windSpeedMph <= 16;
+  const isStalkTemp = amWeather.tempF >= 38 && amWeather.tempF <= 68;
+  const isStalkHumid = amWeather.humidity >= 40 && amWeather.humidity <= 75; // not too wet/dry — quiet ground
+  const isGoodStalkDay = isStalkWind && isStalkTemp && isStalkHumid && amWeather.windSpeedMph > 3;
 
   // PM summary
-  if (pmResult.disqualified === 'heat') {
-    pmSummary = `${Math.round(pmWeather.tempF)}° this afternoon. Way too hot. Deer are bedded and not moving. Don't burn the stand.`;
-  } else if (pmResult.disqualified === 'wind') {
+  if (pmResult.disqualified === 'wind') {
     pmSummary = `Afternoon wind jumps to ${Math.round(pmWeather.windSpeedMph)} mph. Rest the stand — not worth it.`;
   } else if (pmResult.score >= 72) {
     pmSummary = `Afternoon holds up too — ${pmTempStr}, ${pmWindStr}. ${isMoneyWind(pmWeather.windDeg) ? 'Wind stays in your favor. ' : ''}Come back for the evening sit or stay all day.${gunSeasonNote}`;
@@ -1482,43 +973,14 @@ const msToMph = ms => ms * 2.23694;
 let forecastData = null;
 let selectedDay = 1; // Default to tomorrow — night-before planning mode
 let huntLog = [];
-let huntLogSyncing = false;
 
 try {
   const stored = localStorage.getItem('huntLog');
   if (stored) huntLog = JSON.parse(stored);
 } catch(e) {}
 
-async function loadHuntLog() {
-  try {
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-      headers: { 'X-Access-Key': JSONBIN_KEY }
-    });
-    if (!resp.ok) throw new Error('fetch failed');
-    const data = await resp.json();
-    if (data.record.huntLog) huntLog = data.record.huntLog;
-  } catch(e) {
-    try { huntLog = JSON.parse(localStorage.getItem('huntLog') || '[]'); } catch(e2) { huntLog = []; }
-  }
-}
-
-async function saveLog() {
+function saveLog() {
   try { localStorage.setItem('huntLog', JSON.stringify(huntLog)); } catch(e) {}
-  if (huntLogSyncing) return;
-  huntLogSyncing = true;
-  try {
-    // Fetch current bin, merge huntLog in, save back
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-      headers: { 'X-Access-Key': JSONBIN_KEY }
-    });
-    const existing = resp.ok ? (await resp.json()).record : {};
-    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
-      body: JSON.stringify({ ...existing, huntLog })
-    });
-  } catch(e) { /* offline — localStorage already saved */ }
-  huntLogSyncing = false;
 }
 
 function daysSinceLastHunt() {
@@ -1530,24 +992,10 @@ function daysSinceLastHunt() {
 
 async function fetchForecast() {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,precipitation,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure&daily=sunrise,sunset&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=America%2FChicago&forecast_days=7`;
-
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`Weather fetch failed: ${resp.status}`);
   return resp.json();
 }
-
-// Weather Underground PWS — live current conditions from KOKBARNS6 (Barnsdall)
-async function fetchWUCurrent() {
-  if (!wuApiKey) return null;
-  try {
-    const url = `https://api.weather.com/v2/pws/observations/current?stationId=${WU_STATION}&format=json&units=e&numericPrecision=decimal&apiKey=${wuApiKey}`;
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    return (data.observations && data.observations[0]) ? data.observations[0] : null;
-  } catch(e) { return null; }
-}
-
 
 function getHourlySlice(data, dayIdx, startHour, endHour) {
   const base = dayIdx * 24;
@@ -1611,35 +1059,13 @@ function renderDay(dayIdx) {
   const date = new Date(baseDate);
   date.setDate(date.getDate() + dayIdx);
 
-  const amWeather = getHourlySlice(data, dayIdx, 6, 10);  // 6am-10am (in stand by 6:30, first light ~7)
+  const amWeather = getHourlySlice(data, dayIdx, 5, 10);  // 5am-10am
   const pmWeather = getHourlySlice(data, dayIdx, 14, 19); // 2pm-7pm
 
-  // Parse sunrise/sunset for this day
-  const sunriseStr = data.daily && data.daily.sunrise && data.daily.sunrise[dayIdx];
-  const sunsetStr = data.daily && data.daily.sunset && data.daily.sunset[dayIdx];
-  const sunriseHour = sunriseStr ? new Date(sunriseStr).getHours() + new Date(sunriseStr).getMinutes()/60 : 7.0;
-  const sunsetHour = sunsetStr ? new Date(sunsetStr).getHours() + new Date(sunsetStr).getMinutes()/60 : 19.5;
-  const civilTwilightAM = sunriseHour - 0.5; // 30 min before sunrise
-  const civilTwilightPM = sunsetHour + 0.5;  // 30 min after sunset
-
   const solunar = getSolunarPeriods(date, LAT, LON);
-  const amResult = computeScore(amWeather, solunar, date, true, dayIdx, civilTwilightAM);
-  const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx, civilTwilightPM);
-
-  // Live station override — if KOKBARNS6 shows real precip today, disqualify regardless of model
-  if (dayIdx === 0 && wuCurrentData) {
-    const livePrecip = (wuCurrentData.imperial && wuCurrentData.imperial.precipTotal) || 0;
-    const liveHumidity = (wuCurrentData.imperial && wuCurrentData.imperial.humidity) || wuCurrentData.humidity || 0;
-    // Raining now: station shows measurable precip OR humidity is saturated (>= 97%) with any precip
-    if (livePrecip >= 0.1 || (livePrecip > 0 && liveHumidity >= 97)) {
-      if (!amResult.disqualified) {
-        amResult.disqualified = 'rain';
-        amResult.score = 10;
-      }
-    }
-  }
-
-  const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx, sunriseHour, sunsetHour);
+  const amResult = computeScore(amWeather, solunar, date, true, dayIdx);
+  const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx);
+  const { amSummary, pmSummary } = buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, dayIdx);
 
   const phase = getRutPhase(date);
   const todos = getTodos(date);
@@ -1667,38 +1093,6 @@ function renderDay(dayIdx) {
     html += `<div class="pressure-alert">⚠ Boys — barometer's dropping fast. Deer are on their feet right now. Don't sit this one out.</div>`;
   }
 
-  // Prime all-day banner
-  if (amResult.score >= 80 && pmResult.score >= 80) {
-    html += `<div class="pressure-alert" style="border-color:gold;background:rgba(255,215,0,0.08);color:gold">★ PRIME ALL-DAY SIT — Both morning and afternoon are money. Pack a sandwich, extra water, and don't come down until dark.</div>`;
-  }
-
-  // Live station widget — Today only, when WU key is configured and data is fresh
-  if (dayIdx === 0 && wuCurrentData) {
-    const obs = wuCurrentData;
-    const imp = obs.imperial || {};
-    const obsTime = obs.obsTimeLocal ? new Date(obs.obsTimeLocal) : new Date();
-    const timeStr = obsTime.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'});
-    const wuDir = windDirName(obs.winddir || 0);
-    const gustStr = imp.windGust && imp.windGust > (imp.windSpeed || 0) + 2 ? ` (gust ${Math.round(imp.windGust)})` : '';
-    const precipStr = (imp.precipTotal || 0) > 0 ? `<span>${imp.precipTotal}" today</span>` : '';
-    html += `
-      <div class="live-station">
-        <div class="live-station-header">
-          <span style="color:var(--green-dim)">⬤ KOKBARNS6 · Barnsdall · ${timeStr}</span>
-          <span class="live-badge">LIVE</span>
-        </div>
-        <div class="live-metrics">
-          <span>${Math.round(imp.temp || 0)}°F</span>
-          <span>${Math.round(imp.windSpeed || 0)} mph ${wuDir}${gustStr}</span>
-          <span>${Math.round(imp.humidity || obs.humidity || 0)}% RH</span>
-          <span>${((imp.pressure || 0)).toFixed(2)}" Hg</span>
-          ${precipStr}
-        </div>
-        <div style="color:var(--text-dim);margin-top:5px;font-size:0.65rem">Live ground truth · Forecast cards below use Open-Meteo model data</div>
-      </div>
-    `;
-  }
-
   // Rut phase banner
   html += `
     <div class="rut-banner">
@@ -1714,8 +1108,8 @@ function renderDay(dayIdx) {
   html += `
     <div class="session-card">
       <div class="session-header">
-        <div class="session-label">Morning Sit · ${sunriseStr ? 'Sunrise ' + solunar.fmt(sunriseHour) : 'First light'} · In stand by 6:30am</div>
-        <div class="verdict ${amClass}">${scoreVerdict(amResult.score, true, amResult.disqualified)}</div>
+        <div class="session-label">Morning Sit · First light–10am</div>
+        <div class="verdict ${amClass}">${scoreVerdict(amResult.score, true)}</div>
       </div>
       <div class="score-bar-wrap">
         <div class="score-bar-bg"><div class="score-bar-fill ${amClass}" style="width:${amResult.score}%"></div></div>
@@ -1744,10 +1138,6 @@ function renderDay(dayIdx) {
         Major: <span>${solunar.fmt(solunar.major1)}, ${solunar.fmt(solunar.major2)}</span> ·
         Minor: <span>${solunar.fmt(solunar.minor1)}, ${solunar.fmt(solunar.minor2)}</span>
       </div>
-      <div class="solunar-row">
-        🌙 Moon overhead: <span>${solunar.fmt(solunar.overhead)}</span> · underfoot: <span>${solunar.fmt(solunar.underfoot)}</span>
-        ${(() => { const amWindow = solunar.overhead >= 5 && solunar.overhead <= 10; const pmWindow = solunar.overhead >= 14 && solunar.overhead <= 19; const ufAM = solunar.underfoot >= 5 && solunar.underfoot <= 10; const ufPM = solunar.underfoot >= 14 && solunar.underfoot <= 19; if (amWindow || ufAM) return '· <span style="color:var(--green)">⚡ hits your AM sit window</span>'; if (pmWindow || ufPM) return '· <span style="color:var(--green)">⚡ hits your PM sit window</span>'; return ''; })()}
-      </div>
       <div class="summary-box">${amSummary}</div>
     </div>
   `;
@@ -1757,7 +1147,7 @@ function renderDay(dayIdx) {
     <div class="session-card">
       <div class="session-header">
         <div class="session-label">Evening Sit · 2pm–Dark</div>
-        <div class="verdict ${pmClass}">${scoreVerdict(pmResult.score, false, pmResult.disqualified)}</div>
+        <div class="verdict ${pmClass}">${scoreVerdict(pmResult.score, false)}</div>
       </div>
       <div class="score-bar-wrap">
         <div class="score-bar-bg"><div class="score-bar-fill ${pmClass}" style="width:${pmResult.score}%"></div></div>
@@ -1806,257 +1196,67 @@ function renderDay(dayIdx) {
     html += `<div class="pressure-alert" style="border-color:rgba(200,146,42,0.5);background:rgba(200,146,42,0.08);color:var(--amber)">📅 ${calAlert.icon} <strong>${calAlert.title}</strong> in ${calAlert.daysOut} day${calAlert.daysOut !== 1 ? 's' : ''} (${calAlert.dateStr}) — check the Season Calendar tab for what to do.</div>`;
   }
 
-  // Stand intel from hunt log history
-  if (huntLog.length >= 3) {
-    const stands = ['S Ladder','N Ladder','Box Blind','Bryan Saddle','Mason Pop-up'];
-    const windDegNow = amWeather.windDeg;
-    const intelRows = stands.map(s => {
-      const amNudge = historicalNudge(s, windDegNow, true);
-      const pmNudge = historicalNudge(s, windDegNow, false);
-      const relevant = huntLog.filter(e => e.stand === s && e.windDeg != null && (() => { let d = Math.abs((e.windDeg - windDegNow + 360) % 360); if (d > 180) d = 360-d; return d <= 45; })());
-      if (!relevant.length) return null;
-      const totalBucks = relevant.reduce((acc,e) => acc + (e.sightings||[]).filter(s=>s.type==='buck').reduce((a,s)=>a+s.count,0), 0);
-      const totalDoes = relevant.reduce((acc,e) => acc + (e.sightings||[]).filter(s=>s.type==='doe').reduce((a,s)=>a+s.count,0), 0);
-      return { s, sits: relevant.length, totalBucks, totalDoes, amNudge, pmNudge };
-    }).filter(Boolean);
-
-    if (intelRows.length) {
-      const windDirNow = windDirName(windDegNow);
-      html += `<div class="pressure-alert" style="border-color:rgba(122,182,72,0.3);background:rgba(122,182,72,0.05);padding:10px 12px">
-        <div style="font-family:monospace;font-size:0.72rem;color:var(--green);margin-bottom:6px">📊 STAND INTEL · ${windDirNow} wind history</div>
-        ${intelRows.map(r => {
-          const nudge = r.amNudge || r.pmNudge;
-          const arrow = nudge > 3 ? '▲' : nudge < -3 ? '▼' : '—';
-          const col = nudge > 3 ? 'var(--green)' : nudge < -3 ? 'var(--red)' : 'var(--text-dim)';
-          return `<div style="font-family:monospace;font-size:0.75rem;color:var(--text);display:flex;gap:8px;padding:2px 0">
-            <span style="color:${col};min-width:14px">${arrow}</span>
-            <span style="flex:1">${r.s}</span>
-            <span style="color:var(--text-dim)">${r.sits} sit${r.sits!==1?'s':''} · ${r.totalBucks}B ${r.totalDoes}D seen</span>
-          </div>`;
-        }).join('')}
-      </div>`;
-    }
-  }
-
   // Hunt log
   html += `
     <div class="log-section">
       <div class="log-title">Stand Log${daysSince !== null ? ` · Last hunt: ${daysSince === 0 ? 'today' : daysSince + ' day' + (daysSince !== 1 ? 's' : '') + ' ago'}` : ''}</div>
-      <div class="log-form" style="flex-wrap:wrap;gap:8px">
-        <select id="log-stand" style="flex:1;min-width:120px">
+      <div class="log-form">
+        <select id="log-stand">
           <option>S Ladder</option>
           <option>N Ladder</option>
           <option>Box Blind</option>
           <option>Bryan Saddle</option>
           <option>Mason Pop-up</option>
         </select>
-        <input type="date" id="log-date" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
-        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
-          In:
-          <input type="time" id="log-time-in" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;width:100px">
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
-          Out:
-          <input type="time" id="log-time-out" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;width:100px">
-        </div>
+        <select id="log-session">
+          <option>Morning</option>
+          <option>Evening</option>
+          <option>All Day</option>
+        </select>
+        <input id="log-note" placeholder="Notes (optional)" style="flex:1;min-width:120px">
       </div>
-
-      <div style="font-family:monospace;font-size:0.72rem;color:var(--green);margin:10px 0 4px">SIGHTINGS</div>
-      <div id="log-sightings-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
-      <button onclick="addSightingRow()" style="background:transparent;border:1px dashed var(--border);color:var(--text-dim);font-family:monospace;font-size:0.75rem;padding:5px 12px;border-radius:4px;cursor:pointer;margin-bottom:8px">+ Add sighting</button>
-
-      <div class="log-form" style="gap:8px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text-dim)">
-          Harvest:
-          <select id="log-harvest-sel" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
-            <option value="none">None</option>
-            <option value="buck">Buck</option>
-            <option value="doe">Doe</option>
-          </select>
+      <div class="log-form" style="align-items:center;gap:12px;padding:4px 0 8px">
+        <label style="display:flex;align-items:center;gap:6px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
+          <input type="checkbox" id="log-harvest" onchange="toggleHarvestType()" style="width:16px;height:16px;accent-color:var(--green)">
+          Deer killed
+        </label>
+        <div id="harvest-type-wrap" style="display:none;gap:8px;display:none">
+          <label style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
+            <input type="radio" name="harvest-type" value="buck" checked style="accent-color:var(--amber)"> Buck
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;font-family:monospace;font-size:0.78rem;color:var(--text);cursor:pointer">
+            <input type="radio" name="harvest-type" value="doe" style="accent-color:var(--green)"> Doe
+          </label>
         </div>
-        <input id="log-note" placeholder="Notes (optional)" style="flex:1;min-width:100px">
-        <button id="log-submit-btn" onclick="logHunt()" style="flex:0 0 auto;background:var(--green-dim);color:var(--text-bright);border:1px solid var(--green-dim);font-family:monospace;font-size:0.78rem;padding:6px 14px;border-radius:4px;cursor:pointer">Log Hunt</button>
+        <button onclick="logHunt()" style="margin-left:auto;background:var(--green-dim);color:var(--text-bright);border:1px solid var(--green-dim);font-family:monospace;font-size:0.78rem;padding:6px 14px;border-radius:4px;cursor:pointer">Log Hunt</button>
       </div>
-      <div style="font-family:monospace;font-size:0.68rem;color:var(--text-dim);padding:4px 0 6px">
-        Past date? Conditions pulled from weather archive automatically.
-      </div>
-      ${huntLog.slice(-5).reverse().map(e => {
-        const sightStr = (e.sightings||[]).map(s => `${s.time} ${s.count} ${s.type}`).join(', ');
-        const harvestStr = e.harvest && e.harvest !== 'none' ? ' 🦌 ' + e.harvest + ' killed' : '';
-        const windStr = e.windDir && e.windSpeed ? ` ${e.windDir} ${e.windSpeed}mph` : '';
-        const tempStr = e.tempF ? ` ${Math.round(e.tempF)}°` : '';
-        return `<div class="log-entry">
-          <div style="color:var(--text-dim);font-size:0.72rem">${e.dateStr || e.date} · ${e.stand}${e.timeIn ? ' · in ' + e.timeIn : ''}${e.timeOut ? ' out ' + e.timeOut : ''}${windStr}${tempStr}${harvestStr}</div>
-          ${sightStr ? `<div style="font-size:0.75rem;color:var(--text);margin-top:2px">${sightStr}</div>` : '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">No deer seen</div>'}
-          ${e.note ? `<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">${e.note}</div>` : ''}
-        </div>`;
-      }).join('')}
+      ${huntLog.slice(-5).reverse().map(e => `
+        <div class="log-entry">
+          <span>${e.date}</span> · ${e.stand} · ${e.session}${e.harvest ? ' · 🦌 ' + e.harvest + ' killed' : ''}${e.note ? ' · ' + e.note : ''}
+        </div>
+      `).join('')}
     </div>
   `;
 
   main.innerHTML = html;
-
-  // Default log date to today
-  const logDateEl = document.getElementById('log-date');
-  if (logDateEl && !logDateEl.value) {
-    logDateEl.value = new Date().toISOString().slice(0, 10);
-  }
 }
 
-
-let sightingRows = [];
-
-function addSightingRow() {
-  const id = Date.now();
-  sightingRows.push(id);
-  const list = document.getElementById('log-sightings-list');
-  if (!list) return;
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2,'0');
-  const mm = String(now.getMinutes()).padStart(2,'0');
-  const row = document.createElement('div');
-  row.id = 'sighting-' + id;
-  row.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap';
-  row.innerHTML = `
-    <input type="time" value="${hh}:${mm}" data-field="time" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px;width:100px">
-    <select data-field="type" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
-      <option value="buck">Buck</option>
-      <option value="doe">Doe</option>
-    </select>
-    <select data-field="count" style="font-family:monospace;font-size:0.78rem;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:3px 6px">
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3">3</option>
-      <option value="4">4+</option>
-    </select>
-    <button onclick="removeSightingRow(${id})" style="background:transparent;border:none;color:var(--text-dim);font-size:1rem;cursor:pointer;padding:0 4px">✕</button>
-  `;
-  list.appendChild(row);
+function toggleHarvestType() {
+  const checked = document.getElementById('log-harvest').checked;
+  const wrap = document.getElementById('harvest-type-wrap');
+  if (wrap) wrap.style.display = checked ? 'flex' : 'none';
 }
 
-function removeSightingRow(id) {
-  sightingRows = sightingRows.filter(r => r !== id);
-  const el = document.getElementById('sighting-' + id);
-  if (el) el.remove();
-}
-
-function collectSightings() {
-  return sightingRows.map(id => {
-    const row = document.getElementById('sighting-' + id);
-    if (!row) return null;
-    const time = row.querySelector('[data-field="time"]')?.value || '';
-    const type = row.querySelector('[data-field="type"]')?.value || 'buck';
-    const count = parseInt(row.querySelector('[data-field="count"]')?.value || '1');
-    // Convert 24h time to 12h display
-    const [h, m] = time.split(':').map(Number);
-    const ampm = h < 12 ? 'AM' : 'PM';
-    const h12 = h % 12 || 12;
-    const timeDisplay = `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
-    return { time: timeDisplay, time24: time, type, count };
-  }).filter(Boolean);
-}
-
-async function fetchHistoricalConditions(dateStr, hourIn) {
-  // dateStr = 'YYYY-MM-DD', hourIn = integer 0-23
-  // Barnsdall OK coords
-  const lat = 36.5612, lon = -96.1592;
-  try {
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,windspeed_10m,winddirection_10m,relativehumidity_2m,surface_pressure&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=America%2FChicago`;
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const h = data.hourly;
-    const idx = hourIn; // index matches hour of day
-    if (!h || !h.temperature_2m || idx >= h.temperature_2m.length) return null;
-    // Grab pressure for two hours to get trend
-    const p0 = h.surface_pressure[Math.max(0, idx - 2)];
-    const p1 = h.surface_pressure[idx];
-    const pDiff = p1 - p0;
-    const pTrendStr = pDiff < -0.5 ? 'dropping' : pDiff > 0.5 ? 'rising' : 'steady';
-    return {
-      tempF: Math.round(h.temperature_2m[idx]),
-      windSpeed: Math.round(h.windspeed_10m[idx]),
-      windDeg: Math.round(h.winddirection_10m[idx]),
-      windDir: windDirName(Math.round(h.winddirection_10m[idx])),
-      humidity: Math.round(h.relativehumidity_2m[idx]),
-      pTrend: { trend: pTrendStr }
-    };
-  } catch(e) { return null; }
-}
-
-async function logHunt() {
+function logHunt() {
   const stand = document.getElementById('log-stand').value;
+  const session = document.getElementById('log-session').value;
   const note = document.getElementById('log-note').value;
-  const timeIn = document.getElementById('log-time-in')?.value || '';
-  const timeOut = document.getElementById('log-time-out')?.value || '';
-  const harvest = document.getElementById('log-harvest-sel')?.value || 'none';
-  const logDate = document.getElementById('log-date')?.value || new Date().toISOString().slice(0, 10);
-  const sightings = collectSightings();
-
-  const btn = document.getElementById('log-submit-btn');
-  if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
-
-  const fmtTime = t => {
-    if (!t) return '';
-    const [h, m] = t.split(':').map(Number);
-    const ap = h < 12 ? 'AM' : 'PM';
-    return `${h%12||12}:${String(m).padStart(2,'0')} ${ap}`;
-  };
-
-  const [yr, mo, dy] = logDate.split('-').map(Number);
-  const sitDate = new Date(yr, mo - 1, dy);
-  const dateStr = sitDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-  const refHour = timeIn ? parseInt(timeIn.split(':')[0]) : new Date().getHours();
-  const session = refHour < 12 ? 'Morning' : 'Evening';
-
-  // Determine if this is a past sit (date is before today, or same day but timeIn was >1 hr ago)
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const isPast = logDate < todayStr || (logDate === todayStr && timeIn && (now.getHours() - refHour) > 1);
-
-  let condSnapshot = {};
-  if (isPast) {
-    if (btn) btn.textContent = 'Fetching weather...';
-    const hist = await fetchHistoricalConditions(logDate, refHour);
-    if (hist) condSnapshot = hist;
-  } else if (wuCurrentData) {
-    condSnapshot = {
-      tempF: Math.round(wuCurrentData.tempF),
-      windSpeed: Math.round(wuCurrentData.windSpeedMph),
-      windDeg: wuCurrentData.windDeg,
-      windDir: windDirName(wuCurrentData.windDeg),
-      humidity: Math.round(wuCurrentData.humidity),
-      pTrend: pressureTrend(wuCurrentData.pressures)
-    };
-  }
-
-  const entry = {
-    ts: Date.now(),
-    dateStr,
-    stand, session,
-    timeIn: fmtTime(timeIn),
-    timeOut: fmtTime(timeOut),
-    sightings,
-    harvest: harvest !== 'none' ? harvest : null,
-    note,
-    ...condSnapshot
-  };
-
-  huntLog.push(entry);
-  if (huntLog.length > 100) huntLog = huntLog.slice(-100);
-  await saveLog();
-
-  // Reset form
-  document.getElementById('log-date').value = new Date().toISOString().slice(0, 10);
-  document.getElementById('log-time-in').value = '';
-  document.getElementById('log-time-out').value = '';
-  document.getElementById('log-harvest-sel').value = 'none';
-  document.getElementById('log-note').value = '';
-  sightingRows = [];
-  const list = document.getElementById('log-sightings-list');
-  if (list) list.innerHTML = '';
-  if (btn) { btn.textContent = 'Log Hunt'; btn.disabled = false; }
-
+  const harvested = document.getElementById('log-harvest') && document.getElementById('log-harvest').checked;
+  const harvestType = harvested ? (document.querySelector('input[name="harvest-type"]:checked')?.value || 'buck') : null;
+  const dateStr = new Date().toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+  huntLog.push({ date: dateStr, stand, session, note, harvest: harvestType, ts: Date.now() });
+  if (huntLog.length > 30) huntLog = huntLog.slice(-30);
+  saveLog();
   renderDay(selectedDay);
 }
 
@@ -2130,21 +1330,19 @@ function renderWeekStrip(data) {
     const amW = getHourlySlice(data, i, 5, 10);
     const pmW = getHourlySlice(data, i, 14, 19);
     const sol = getSolunarPeriods(d, LAT, LON);
-    const amR = computeScore(amW, sol, d, true, i, 6.5);  // civil twilight ~6:30am
-    const pmR = computeScore(pmW, sol, d, false, i, 19.5); // civil twilight ~7:30pm
+    const amR = computeScore(amW, sol, d, true, i);
+    const pmR = computeScore(pmW, sol, d, false, i);
     const best = Math.max(amR.score, pmR.score);
     const cls = scoreClass(best);
     const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
     const alert = getDayAlertIcon(data, i);
     const alertHtml = alert ? `<div class="tab-alert ${alert.alert ? 'hot' : ''}">${alert.icon}</div>` : '';
-    const isPrimeDay = amR.score >= 80 && pmR.score >= 80;
-    const primeHtml = isPrimeDay ? '<div style="font-size:0.6rem;color:gold">★ ALL DAY</div>' : '';
     html += `
-      <div class="day-tab ${i === selectedDay ? 'active' : ''} ${isPrimeDay ? 'prime-day' : alert && alert.alert ? 'has-alert' : ''}" onclick="selectDay(${i})">
+      <div class="day-tab ${i === selectedDay ? 'active' : ''} ${alert && alert.alert ? 'has-alert' : ''}" onclick="selectDay(${i})">
         <div class="dow">${label}</div>
         <div class="date-num">${d.getDate()}</div>
         <div class="tab-score ${cls}">${best}</div>
-        ${alertHtml}${primeHtml}
+        ${alertHtml}
       </div>
     `;
   }
@@ -2161,25 +1359,13 @@ function selectDay(i) {
 
 async function init() {
   try {
-    [forecastData, wuCurrentData] = await Promise.all([
-      fetchForecast(),
-      fetchWUCurrent(),
-      loadHuntLog()
-    ]);
+    forecastData = await fetchForecast();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('coords-label').textContent = `${STAND_LABEL} · Tomorrow: ${tomorrow.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
     renderWeekStrip(forecastData);
     renderDay(selectedDay); // defaults to tomorrow (index 1)
     initSwipe();
-    // Refresh live WU station data every 15 minutes
-    setInterval(async () => {
-        const fresh = await fetchWUCurrent();
-        if (fresh) {
-          wuCurrentData = fresh;
-          if (selectedDay === 0) renderDay(0);
-        }
-      }, 15 * 60 * 1000);
   } catch(e) {
     document.getElementById('main-content').innerHTML = `<div class="error-msg">Failed to load weather data. Check your connection and reload.<br><small>${e.message}</small></div>`;
     document.getElementById('week-strip').innerHTML = '';
@@ -2187,14 +1373,6 @@ async function init() {
 }
 
 init();
-
-// If still loading after 12 seconds, show a reload button
-setTimeout(() => {
-  const main = document.getElementById('main-content');
-  if (main && main.innerHTML.includes('Pulling weather data')) {
-    main.innerHTML = `<div class="error-msg">Taking longer than expected.<br><button onclick="location.reload()" style="margin-top:10px;background:var(--green-dim);color:var(--text-bright);border:none;font-family:monospace;font-size:0.78rem;padding:8px 16px;border-radius:4px;cursor:pointer">Reload</button></div>`;
-  }
-}, 12000);
 </script>
 </body>
 </html>
