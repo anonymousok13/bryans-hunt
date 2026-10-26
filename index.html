@@ -1669,7 +1669,15 @@ function renderDay(dayIdx) {
 
   // Prime all-day banner
   if (amResult.score >= 80 && pmResult.score >= 80) {
-    html += `<div class="pressure-alert" style="border-color:gold;background:rgba(255,215,0,0.08);color:gold">★ PRIME ALL-DAY SIT — Both morning and afternoon are money. Pack a sandwich, extra water, and don't come down until dark.</div>`;
+    const primeAllDayTips = [
+      "★ PRIME ALL-DAY SIT — Both morning and afternoon are money. Pack a sandwich, extra water, and don't come down until dark.",
+      "★ ALL DAY OR BUST — Today is not a half-day situation. The guy who climbs down at noon is the guy who watches someone else shoot a giant on the walk out.",
+      "★ TODAY IS THE DAY — I'm not saying this every day. I'm saying it today. Get in the stand and stay there.",
+      "★ CONDITIONS ARE PERFECT — Temperature, wind, pressure — it all lined up. The deer know it too. Be where they're going before they get there.",
+      "★ DON'T BLOW IT — You've been waiting all season for a day like today. Packed lunch, full thermos, phone on silent. Move nothing but your eyes.",
+    ];
+    const primeAllDayTip = primeAllDayTips[Math.floor(Math.random() * primeAllDayTips.length)];
+    html += `<div class="pressure-alert" style="border-color:gold;background:rgba(255,215,0,0.08);color:gold">${primeAllDayTip}</div>`;
   }
 
   // Live station widget — Today only, when WU key is configured and data is fresh
