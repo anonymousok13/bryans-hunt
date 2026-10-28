@@ -1184,8 +1184,16 @@ function pressureScore(pTrend) {
   return 50; // steady — neutral
 }
 
-function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
+function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight, dailyPrecip) {
   const { tempF, windSpeedMph, windDeg, humidity, precip, pressures } = weather;
+
+  // WASHOUT check — daily total > 1" tanks everything before we do any other work
+  const dp = dailyPrecip || 0;
+  if (dp > 1.00) {
+    const pt = pressureTrend(pressures);
+    return { score: 5, disqualified: 'washout', pTrend: pt, majors: [], minors: [] };
+  }
+
   const pTrend = pressureTrend(pressures);
   const moonMult = solunar.moonInfo.mult;
   const rutMult = getRutMultiplier(date);
@@ -1265,7 +1273,13 @@ function computeScore(weather, solunar, date, isAM, dayIdx, civilTwilight) {
     rutMult  * 100 * wRut    +
     solunarProximityBonus;
 
-  return { score: Math.min(100, Math.round(raw)), disqualified: null, pTrend, majors, minors };
+  // Tiered daily rain penalty (session disqualifier above handles heavy in-window rain)
+  let finalScore = Math.min(100, Math.round(raw));
+  if (dp >= 0.75) finalScore = Math.max(0, finalScore - 20);
+  else if (dp >= 0.26) finalScore = Math.max(0, finalScore - 10);
+  else if (dp >= 0.01) finalScore = Math.max(0, finalScore - 5);
+
+  return { score: finalScore, disqualified: null, pTrend, majors, minors };
 }
 
 // Historical nudge: look at past logs for same stand + similar wind dir, return ±0-10
@@ -1306,6 +1320,7 @@ function scoreClass(score) {
 function scoreVerdict(score, isAM, disqualified) {
   const session = isAM ? 'morning' : 'afternoon';
   const pick = arr => arr[Math.floor(Date.now() / 60000) % arr.length];
+  if (disqualified === 'washout') return 'WASHOUT';
   if (disqualified === 'heat') return pick([`Too hot — stay home`, `Heat's a killer — rest the stand`, `Too warm — deer aren't moving`, `Skip it — way too hot`]);
   if (disqualified === 'wind') return pick([`Too windy — stay home`, `Wind's wrecked it — stay home`, `Too much wind — don't burn the stand`, `Blowing too hard — skip it`]);
   if (disqualified === 'rain') return pick([`It's raining — stay home`, `Raining like a cow on a flat rock — skip it`, `Not in this rain — rest the stand`, `Wet and useless — stay home`]);
@@ -1353,7 +1368,9 @@ function buildSummary(amWeather, pmWeather, date, amResult, pmResult, solunar, d
     : '';
 
   // AM summary
-  if (amResult.disqualified === 'heat') {
+  if (amResult.disqualified === 'washout') {
+    amSummary = `Over an inch of rain in the forecast today. That's a washout — nobody's sitting in that, and the deer won't be moving anyway. Stay home and rest the stand.`;
+  } else if (amResult.disqualified === 'heat') {
     amSummary = `${Math.round(amWeather.tempF)}° in the morning — too damn hot. Deer aren't moving in this heat. Stay home and save the stand.`;
   } else if (amResult.disqualified === 'wind') {
     amSummary = `Wind's running ${Math.round(amWeather.windSpeedMph)} mph tomorrow morning — too much. Scent's gonna be all over the place and deer won't be moving anyway. Stay home.`;
@@ -1576,6 +1593,17 @@ function getHourlySlice(data, dayIdx, startHour, endHour) {
   };
 }
 
+function getDailyPrecip(data, dayIdx) {
+  const base = dayIdx * 24;
+  let total = 0;
+  for (let h = 0; h < 24; h++) {
+    const i = base + h;
+    if (i >= data.hourly.precipitation.length) break;
+    total += data.hourly.precipitation[i] || 0;
+  }
+  return total;
+}
+
 // Get weather alert icon for a day
 function getDayAlertIcon(data, dayIdx) {
   const base = dayIdx * 24;
@@ -1623,8 +1651,9 @@ function renderDay(dayIdx) {
   const civilTwilightPM = sunsetHour + 0.5;  // 30 min after sunset
 
   const solunar = getSolunarPeriods(date, LAT, LON);
-  const amResult = computeScore(amWeather, solunar, date, true, dayIdx, civilTwilightAM);
-  const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx, civilTwilightPM);
+  const dailyPrecip = getDailyPrecip(data, dayIdx);
+  const amResult = computeScore(amWeather, solunar, date, true, dayIdx, civilTwilightAM, dailyPrecip);
+  const pmResult = computeScore(pmWeather, solunar, date, false, dayIdx, civilTwilightPM, dailyPrecip);
 
   // Live station override — if KOKBARNS6 shows real precip today, disqualify regardless of model
   if (dayIdx === 0 && wuCurrentData) {
@@ -2147,8 +2176,9 @@ function renderWeekStrip(data) {
     const amW = getHourlySlice(data, i, 5, 10);
     const pmW = getHourlySlice(data, i, 14, 19);
     const sol = getSolunarPeriods(d, LAT, LON);
-    const amR = computeScore(amW, sol, d, true, i, 6.5);  // civil twilight ~6:30am
-    const pmR = computeScore(pmW, sol, d, false, i, 19.5); // civil twilight ~7:30pm
+    const dp = getDailyPrecip(data, i);
+    const amR = computeScore(amW, sol, d, true, i, 6.5, dp);   // civil twilight ~6:30am
+    const pmR = computeScore(pmW, sol, d, false, i, 19.5, dp); // civil twilight ~7:30pm
     const best = Math.max(amR.score, pmR.score);
     const cls = scoreClass(best);
     const label = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : days[d.getDay()];
